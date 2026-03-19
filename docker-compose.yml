@@ -1,3 +1,4 @@
+version: "3.8"
 services:
   extractor:
     image: ghcr.io/atvriders/extractor:latest
