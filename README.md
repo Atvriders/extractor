@@ -1,6 +1,6 @@
 # Extractor
 
-A browser-based incremental clicker game. Click the planet to extract ore, build drones, and industrialise the galaxy — all while watching the planet visually degrade beneath your mining operation. Fully mobile-friendly with cloud save and a cross-device leaderboard.
+A browser-based incremental clicker game. Click the planet to extract ore, build drones, and industrialise the galaxy. Watch your fleet of visually distinct drones fly between the planet and your orbiting spaceship in real time, while the planet degrades beneath your operation. Fully mobile-friendly with cloud save and a cross-device leaderboard.
 
 ![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)
 
@@ -17,7 +17,7 @@ Click the planet to earn ore. Spend ore on drones. Drones auto-produce resources
 | **Frozen** | 25,000 total ore | 7× | 200,000 ore |
 | **Void** | 200,000 total ore | 20× | 2,000,000 ore |
 
-Each planet has a unique canvas-rendered surface with animated degradation. Damage is calculated per-planet and resets on travel.
+Each planet has a unique canvas-rendered surface with animated degradation and a 3D hemisphere shadow overlay. Damage is calculated per-planet and resets on travel. All planets are rendered on a starfield canvas with a twinkling star background.
 
 ### Planet Degradation (Earth example)
 
@@ -41,14 +41,16 @@ Each planet has a unique canvas-rendered surface with animated degradation. Dama
 
 ### Drones
 
-| Drone | Produces | Base Cost |
-|---|---|---|
-| **Miner** | 0.5 ore/sec | 10 ore |
-| **Researcher** | 0.1 RP/sec | 60 ore |
-| **Trader** | 1.0 credit/sec | 50 ore |
-| **Fabricator** | −5% all drone costs (stacks to 60%) | 150 ore + 80 cr + 10 RP |
+| Drone | Produces | Base Cost | Visual |
+|---|---|---|---|
+| **Miner** | 0.5 ore/sec | 10 ore | Orange chunky hull with front drill bit |
+| **Researcher** | 0.1 RP/sec | 60 ore | Slim purple craft with rotating sensor dish |
+| **Trader** | 1.0 credit/sec | 50 ore | Gold boxy hauler with top/bottom cargo pods |
+| **Fabricator** | −5% all drone costs (stacks to 60%) | 150 ore + 80 cr + 10 RP | Teal hexagonal drone with animated robotic arm |
 
 All drone costs scale ×1.15–1.30 per purchase.
+
+Drones are animated on the canvas — up to 2 of each type fly bezier-curve paths between the planet surface and the player's spaceship simultaneously. Colour brightens on the return trip (loaded). The player's spaceship is visible in the top-right corner with engine exhaust, blinking nav lights, and a docking bay light strip.
 
 ### Research Tree
 
