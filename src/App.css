@@ -86,6 +86,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 /* ── Planet Area ──────────────────────────────────────────────────────────── */
 .planet-area { display: flex; flex-direction: column; align-items: center; gap: 10px; position: relative; }
+.planet-canvas { display: block; width: 300px; height: 300px; }
 .planet-wrapper {
   cursor: crosshair;
   transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s;
@@ -317,6 +318,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
 }
 
+/* ── Planet side info (desktop: centered below canvas, mobile: beside it) ─── */
+.planet-side-info { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+
 /* ── Planet name badge ────────────────────────────────────────────────────── */
 .planet-name-badge {
   font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
@@ -364,3 +368,107 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── Touch friendliness ───────────────────────────────────────────────────── */
+button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.planet-wrapper { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* ── Mobile Layout ────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  html, body { height: 100dvh; }
+  #root { height: 100dvh; }
+
+  /* Topbar */
+  .topbar { padding: 6px 12px; gap: 8px; }
+  .game-title { font-size: 15px; letter-spacing: 2px; }
+  .drone-total { font-size: 11px; }
+
+  /* Resource bar — compact, wrap if needed */
+  .resource-bar { padding: 6px 8px; gap: 4px; flex-wrap: wrap; }
+  .resource-item { padding: 5px 8px; gap: 4px; flex: 1; min-width: 90px; }
+  .res-icon  { font-size: 13px; }
+  .res-value { font-size: 14px; min-width: 44px; }
+  .res-label { font-size: 9px; }
+  .res-rate  { font-size: 10px; }
+
+  /* Stack main layout vertically */
+  .main-layout { flex-direction: column; overflow-y: auto; overflow-x: hidden; }
+
+  /* Left column: shrink, horizontal planet+info layout */
+  .left-col {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+    gap: 12px;
+    background: radial-gradient(ellipse at top left, #0e1525 0%, #0a0c14 70%);
+  }
+
+  /* Planet area: row inside left-col */
+  .planet-area { flex-direction: row; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  /* Smaller canvas */
+  .planet-canvas { width: 130px !important; height: 130px !important; }
+
+  /* Planet side info stacks vertically beside canvas */
+  .planet-side-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+
+  /* Hide orbit ring on mobile (too cramped) */
+  .orbit-ring { display: none; }
+
+  /* Damage bar fills available width */
+  .damage-bar-wrap { width: 100%; }
+
+  /* Hide stats box on mobile */
+  .stats-box { display: none; }
+
+  /* Advance button: smaller */
+  .advance-btn { width: 100%; padding: 8px 12px; font-size: 12px; }
+
+  /* Right col: fill remaining space */
+  .right-col { flex: 1; min-height: 0; overflow: hidden; }
+
+  /* Tabs: fill width evenly */
+  .tabs { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .tab-btn { padding: 10px 4px; font-size: 12px; letter-spacing: 0; text-align: center; }
+
+  /* Panel: less padding */
+  .panel { padding: 10px; }
+
+  /* Drone cards: tighter */
+  .drone-card { padding: 9px 10px; gap: 8px; }
+  .drone-icon { font-size: 22px; }
+  .drone-name { font-size: 12px; }
+  .drone-desc { font-size: 10px; }
+  .drone-stat { font-size: 10px; }
+
+  /* Research cards: tighter */
+  .research-card { padding: 10px 12px; }
+  .research-name { font-size: 12px; }
+  .research-desc { font-size: 10px; }
+
+  /* Notification: wider on mobile */
+  .notification { width: 90%; text-align: center; bottom: 16px; font-size: 12px; padding: 9px 16px; }
+
+  /* Planet panel cards */
+  .planet-card { padding: 10px 12px; gap: 8px; }
+  .planet-card-icon { font-size: 24px; }
+  .planet-card-name { font-size: 12px; }
+  .planet-card-desc { font-size: 10px; }
+}
+
+/* ── Extra small (phones < 400px) ─────────────────────────────────────────── */
+@media (max-width: 400px) {
+  .planet-canvas { width: 110px !important; height: 110px !important; }
+  .planet-name-badge { font-size: 10px; letter-spacing: 2px; }
+  .planet-sublabel { font-size: 10px; }
+  .damage-bar-label { font-size: 9px; }
+  .res-value { font-size: 13px; }
+  .tab-btn { font-size: 11px; }
+
+  /* Hide descriptions on tiny screens */
+  .drone-desc { display: none; }
+}

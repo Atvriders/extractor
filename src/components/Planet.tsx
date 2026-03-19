@@ -519,13 +519,12 @@ export default function Planet({ state, onClickPlanet }: Props) {
 
   return (
     <div className="planet-area">
-      <div className="planet-name-badge">{planet.name}</div>
       <div
         className={`planet-wrapper${pressed ? ' pressed' : ''}`}
         onClick={handleClick}
         style={{ position: 'relative', display: 'inline-block' }}
       >
-        <canvas ref={canvasRef} width={300} height={300} style={{ display: 'block', cursor: 'crosshair' }} />
+        <canvas ref={canvasRef} width={300} height={300} className="planet-canvas" />
         {orbitDots > 0 && (
           <div className="orbit-ring" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
             {Array.from({ length: orbitDots }).map((_, i) => (
@@ -540,18 +539,20 @@ export default function Planet({ state, onClickPlanet }: Props) {
         ))}
       </div>
 
-      <div className="damage-bar-wrap">
-        <div className="damage-bar-label">
-          <span>EXTRACTION DAMAGE</span>
-          <span style={{ color: barColor }}>{Math.round(damage * 100)}%</span>
+      <div className="planet-side-info">
+        <div className="planet-name-badge">{planet.name}</div>
+        <div className="damage-bar-wrap">
+          <div className="damage-bar-label">
+            <span>EXTRACTION DAMAGE</span>
+            <span style={{ color: barColor }}>{Math.round(damage * 100)}%</span>
+          </div>
+          <div className="damage-bar-track">
+            <div className="damage-bar-fill" style={{ width: `${damage * 100}%`, background: barColor, boxShadow: `0 0 8px ${barColor}80` }} />
+          </div>
+          <div className="damage-status" style={{ color: barColor }}>{label}</div>
         </div>
-        <div className="damage-bar-track">
-          <div className="damage-bar-fill" style={{ width: `${damage * 100}%`, background: barColor, boxShadow: `0 0 8px ${barColor}80` }} />
-        </div>
-        <div className="damage-status" style={{ color: barColor }}>{label}</div>
+        <div className="planet-sublabel">+{Math.round(orePerClick)} ore/click · {planet.oreMultiplier}× yield</div>
       </div>
-
-      <div className="planet-sublabel">+{Math.round(orePerClick)} ore per click · {planet.oreMultiplier}× yield</div>
     </div>
   );
 }
