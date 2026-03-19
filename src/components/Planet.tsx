@@ -1067,6 +1067,17 @@ const ST_ORBITS:  Record<string, number> = { mining: R+44, research: R+80, marke
 const ST_SPEEDS:  Record<string, number> = { mining: 0.00018, research: 0.00013, market: 0.00009, fabricator: -0.00022 };
 const ST_OFFSETS: Record<string, number> = { mining: 0, research: 0.8, market: 0, fabricator: 2.5 };
 
+// Available canvas radius from planet centre (min dist to edge minus padding)
+const CANVAS_SAFE_R = Math.min(CX, CY, W - CX, H - CY) - 18;
+
+function computeTargetZoom(sm: StationCounts): number {
+  let maxR = R + 18; // planet + small breathing room
+  for (const type of ['mining', 'research', 'market', 'fabricator'] as const) {
+    if ((sm[type] ?? 0) > 0) maxR = Math.max(maxR, ST_ORBITS[type] + 24);
+  }
+  return Math.max(0.60, Math.min(1, CANVAS_SAFE_R / maxR));
+}
+
 function getTarget(kind: DroneKind, sm: StationCounts, t: number): [number, number] {
   const type = DRONE_STATION[kind];
   if ((sm[type] ?? 0) === 0) return [SHIP_X, SHIP_Y];
@@ -1158,6 +1169,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const droneAnims    = useRef<DroneAnim[]>([]);
   const burstAnims    = useRef<DroneAnim[]>([]);
+  const zoomRef       = useRef(1.0);
   const tRef          = useRef(0);
   const [floats, setFloats] = useState<FloatText[]>([]);
   const { orePerClick } = computeStats(state);
@@ -1216,9 +1228,19 @@ export default function Planet({ state, onClickPlanet }: Props) {
         recomputeCPs(d);
       }
 
+      // ── Zoom: lerp toward target so stations stay in frame ────────────
+      const targetZ = computeTargetZoom(stationsRef.current);
+      zoomRef.current += (targetZ - zoomRef.current) * Math.min(1, delta * 0.003);
+      const zoom = zoomRef.current;
+
       // ── Draw ──────────────────────────────────────────────────────────
       ctx.fillStyle = '#070c14';
       ctx.fillRect(0, 0, W, H);
+
+      ctx.save();
+      ctx.translate(CX, CY);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-CX, -CY);
 
       drawStars(ctx, t);
       drawPlanet(ctx, t, pid, dmg);
@@ -1237,6 +1259,8 @@ export default function Planet({ state, onClickPlanet }: Props) {
       }
       burstAnims.current = burstAnims.current.filter(d => d.phase < 0.42);
       for (const d of burstAnims.current) drawDrone(ctx, d, t);
+
+      ctx.restore();
 
       raf = requestAnimationFrame(loop);
     }
