@@ -1,12 +1,28 @@
 # Extractor
 
-A browser-based incremental clicker game. Click the planet to extract ore, build drones, and slowly industrialise the galaxy.
+A browser-based incremental clicker game. Click the planet to extract ore, build drones, and slowly industrialise the galaxy — all while watching the planet visually degrade beneath your mining operation.
 
 ![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)
 
 ## Gameplay
 
 Click the planet to earn ore. Spend ore on drones. Drones auto-produce resources every frame. Spend research points on upgrades that compound into massive production multipliers.
+
+### Planet Degradation
+
+The planet surface changes visually as you extract ore. Damage is calculated on a logarithmic scale so early progress is visible quickly.
+
+| Damage | Visual State |
+|---|---|
+| 0% | Pristine blue surface with cloud bands |
+| 15% | Surface erosion — first craters appear |
+| 30% | Moderate damage — cracks begin spreading |
+| 50% | Structural compromise — molten core bleeds through |
+| 68% | Core exposure — orange glow dominates |
+| 82% | Critical depletion — debris orbiting |
+| 95%+ | Planet shell only |
+
+Craters use seeded positions so they always appear in the same spots and grow consistently. Cracks emit a molten glow. At high damage, floating debris particles orbit the hollowed-out shell.
 
 ### Resources
 
