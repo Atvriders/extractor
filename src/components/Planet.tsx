@@ -1031,6 +1031,7 @@ function damageLabel(d: number) {
 export default function Planet({ state, onClickPlanet }: Props) {
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const droneAnims    = useRef<DroneAnim[]>([]);
+  const burstAnims    = useRef<DroneAnim[]>([]);
   const [floats, setFloats]   = useState<FloatText[]>([]);
   const [pressed, setPressed] = useState(false);
   const { orePerClick } = computeStats(state);
@@ -1096,6 +1097,11 @@ export default function Planet({ state, onClickPlanet }: Props) {
       drawShip(ctx, t);
       for (const d of droneAnims.current) drawDrone(ctx, d, t);
 
+      // Burst drones: one-shot planet→ship, vanish on dock
+      for (const d of burstAnims.current) d.phase += d.speed * delta;
+      burstAnims.current = burstAnims.current.filter(d => d.phase < 0.42);
+      for (const d of burstAnims.current) drawDrone(ctx, d, t);
+
       raf = requestAnimationFrame(loop);
     }
 
@@ -1113,6 +1119,29 @@ export default function Planet({ state, onClickPlanet }: Props) {
     setTimeout(() => setFloats(f => f.filter(ft => ft.id !== id)), 900);
     setPressed(true);
     setTimeout(() => setPressed(false), 120);
+
+    // Spawn burst drones flying planet → ship on each click
+    const kinds = buildTypeList(dronesRef.current);
+    const burstCount = 3 + Math.floor(Math.random() * 3); // 3–5
+    for (let i = 0; i < burstCount; i++) {
+      const kind = kinds.length > 0 ? kinds[Math.floor(Math.random() * kinds.length)] : 'miner';
+      const angle = Math.random() * TWO_PI;
+      const sx = CX + Math.cos(angle) * R;
+      const sy = CY + Math.sin(angle) * R;
+      const mx = (sx + SHIP_X) * 0.5;
+      const my = (sy + SHIP_Y) * 0.5;
+      const dx = SHIP_X - sx, dy = SHIP_Y - sy;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const perpX = -dy / len, perpY = dx / len;
+      const off = (Math.random() - 0.5) * 80;
+      burstAnims.current.push({
+        surfAngle: angle, kind, seed: Math.random() * 1000,
+        phase: 0,
+        speed: 0.0009 + Math.random() * 0.0006,
+        cpOutX: mx + perpX * off, cpOutY: my + perpY * off,
+        cpRetX: mx - perpX * off, cpRetY: my - perpY * off,
+      });
+    }
   }, [onClickPlanet, orePerClick]);
 
   return (
