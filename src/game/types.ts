@@ -10,7 +10,7 @@ export interface GameState {
   totalOreExtracted: number;
   planetOreExtracted: number; // resets on planet switch — drives damage
   currentPlanet: number;      // 0=Earth 1=Arid 2=Frozen 3=Void
-  tab: 'drones' | 'research' | 'planets';
+  tab: 'drones' | 'research' | 'planets' | 'leaderboard';
   notification: string;
   notifKey: number;           // changes to re-trigger notification animation
 }

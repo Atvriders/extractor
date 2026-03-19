@@ -369,6 +369,66 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
+/* ── Topbar user badge ────────────────────────────────────────────────────── */
+.topbar-user { color: var(--accent); opacity: 0.85; }
+
+/* ── Username Modal ───────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(6px);
+}
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px 40px;
+  width: 100%; max-width: 380px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  box-shadow: 0 0 60px var(--accent)20, 0 8px 40px rgba(0,0,0,0.6);
+  animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.85) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-title {
+  font-size: 22px; font-weight: 700; letter-spacing: 4px; color: var(--accent);
+  animation: titleGlow 3s ease-in-out infinite;
+}
+.modal-subtitle { font-size: 14px; color: var(--text); font-weight: 600; }
+.modal-hint { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.5; }
+.modal-form { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 4px; }
+.modal-input {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  padding: 10px 14px; font-size: 14px;
+  outline: none; width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.modal-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent)20; }
+.modal-error { font-size: 11px; color: var(--red); }
+.modal-confirm-btn { width: 100%; padding: 11px; font-size: 14px; margin-top: 4px; }
+
+/* ── Leaderboard Panel ────────────────────────────────────────────────────── */
+.lb-loading, .lb-empty { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
+.lb-list { display: flex; flex-direction: column; gap: 6px; }
+.lb-row {
+  display: grid; grid-template-columns: 32px 1fr auto auto; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; font-size: 13px;
+  transition: border-color 0.2s;
+}
+.lb-row.lb-self { border-color: var(--accent); background: var(--accent)0a; }
+.lb-rank { font-size: 16px; text-align: center; }
+.lb-name { font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-row.lb-self .lb-name { color: var(--accent); }
+.lb-ore  { color: var(--ore-col); font-weight: 700; font-size: 12px; white-space: nowrap; }
+.lb-time { color: var(--muted); font-size: 10px; white-space: nowrap; }
+
 /* ── Touch friendliness ───────────────────────────────────────────────────── */
 button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .planet-wrapper { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -431,9 +491,9 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   /* Right col: fill remaining space */
   .right-col { flex: 1; min-height: 0; overflow: hidden; }
 
-  /* Tabs: fill width evenly */
-  .tabs { display: grid; grid-template-columns: 1fr 1fr 1fr; }
-  .tab-btn { padding: 10px 4px; font-size: 12px; letter-spacing: 0; text-align: center; }
+  /* Tabs: fill width evenly (4 tabs) */
+  .tabs { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .tab-btn { padding: 10px 2px; font-size: 11px; letter-spacing: 0; text-align: center; }
 
   /* Panel: less padding */
   .panel { padding: 10px; }
@@ -460,8 +520,16 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .planet-card-desc { font-size: 10px; }
 }
 
+  /* Leaderboard: tighter on mobile */
+  .lb-row { grid-template-columns: 28px 1fr auto; gap: 6px; padding: 8px 10px; }
+  .lb-time { display: none; }
+  .lb-ore  { font-size: 11px; }
+}
+
 /* ── Extra small (phones < 400px) ─────────────────────────────────────────── */
 @media (max-width: 400px) {
+  .modal-box { padding: 28px 20px; }
+  .modal-title { font-size: 18px; }
   .planet-canvas { width: 110px !important; height: 110px !important; }
   .planet-name-badge { font-size: 10px; letter-spacing: 2px; }
   .planet-sublabel { font-size: 10px; }

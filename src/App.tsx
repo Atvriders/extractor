@@ -1,21 +1,50 @@
 import { useReducer, useEffect, useRef, useCallback, useState } from 'react';
-import Planet        from './components/Planet';
-import ResourceBar   from './components/ResourceBar';
-import DronePanel    from './components/DronePanel';
-import ResearchPanel from './components/ResearchPanel';
-import PlanetsPanel  from './components/PlanetsPanel';
-import { reducer }   from './game/reducer';
+import Planet           from './components/Planet';
+import ResourceBar      from './components/ResourceBar';
+import DronePanel       from './components/DronePanel';
+import ResearchPanel    from './components/ResearchPanel';
+import PlanetsPanel     from './components/PlanetsPanel';
+import LeaderboardPanel from './components/LeaderboardPanel';
+import UsernameModal    from './components/UsernameModal';
+import { reducer }      from './game/reducer';
 import { loadGame, saveGame, resetGame } from './game/save';
 import { getPlanet, calcDamage, PLANETS } from './game/planets';
+import { apiLoad, apiSave } from './api';
 import type { DroneType } from './game/types';
 import './App.css';
 
-export default function App() {
-  const [state, dispatch]       = useReducer(reducer, undefined, loadGame);
-  const [notifVisible, setNotif] = useState(false);
-  const notifTimer               = useRef<ReturnType<typeof setTimeout> | null>(null);
+const USERNAME_KEY = 'extractor_username';
 
-  // Game loop at 60fps
+export default function App() {
+  const [username, setUsername]     = useState<string | null>(() => localStorage.getItem(USERNAME_KEY));
+  const [apiReady, setApiReady]     = useState(false);
+  const [state, dispatch]           = useReducer(reducer, undefined, loadGame);
+  const [notifVisible, setNotif]    = useState(false);
+  const notifTimer                  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cloudSaveTimer              = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Username confirm: load cloud save, then start ──────────────────────────
+  async function handleUsername(name: string) {
+    localStorage.setItem(USERNAME_KEY, name);
+    const cloud = await apiLoad(name);
+    if (cloud) {
+      dispatch({ type: 'LOAD', state: cloud as Parameters<typeof reducer>[0] });
+    }
+    setUsername(name);
+    setApiReady(true);
+  }
+
+  // On mount: if username already stored, do cloud load silently
+  useEffect(() => {
+    if (!username) return;
+    apiLoad(username).then(cloud => {
+      if (cloud) dispatch({ type: 'LOAD', state: cloud as Parameters<typeof reducer>[0] });
+      setApiReady(true);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Game loop at 60fps ─────────────────────────────────────────────────────
   useEffect(() => {
     let last = performance.now();
     let raf  = 0;
@@ -29,17 +58,28 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Save on meaningful changes
+  // ── Local save on meaningful changes ──────────────────────────────────────
   useEffect(() => { saveGame(state); }, [state.upgrades, state.drones, state.currentPlanet]);
 
-  // Save every 30s
+  // ── Cloud save (debounced 10s) on state changes ────────────────────────────
+  useEffect(() => {
+    if (!username || !apiReady) return;
+    if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
+    cloudSaveTimer.current = setTimeout(() => {
+      saveGame(state);
+      apiSave(username, state);
+    }, 10_000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.totalOreExtracted, state.upgrades, state.drones, state.currentPlanet]);
+
+  // ── Periodic local save every 30s ─────────────────────────────────────────
   useEffect(() => {
     const id = setInterval(() => saveGame(state), 30_000);
     return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Show notification briefly when notifKey changes
+  // ── Notification ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!state.notification) return;
     setNotif(true);
@@ -55,17 +95,24 @@ export default function App() {
 
   const totalDrones = Object.values(state.drones).reduce((a, b) => a + b, 0);
   const planet      = getPlanet(state.currentPlanet);
-  const damage      = calcDamage(state.planetOreExtracted, planet);
+  const _damage     = calcDamage(state.planetOreExtracted, planet);
 
-  // Next planet availability
-  const nextPlanet  = PLANETS[state.currentPlanet + 1];
-  const canAdvance  = nextPlanet && state.totalOreExtracted >= nextPlanet.unlockTotalOre;
+  const nextPlanet = PLANETS[state.currentPlanet + 1];
+  const canAdvance = nextPlanet && state.totalOreExtracted >= nextPlanet.unlockTotalOre;
+
+  // Show username modal if not set
+  if (!username) {
+    return <UsernameModal onConfirm={handleUsername} />;
+  }
 
   return (
     <div className="app">
       <header className="topbar">
         <span className="game-title">⬡ EXTRACTOR</span>
-        <span className="drone-total">Drones: {totalDrones} · Planet: {planet.name}</span>
+        <span className="drone-total">
+          {username && <span className="topbar-user">👤 {username} · </span>}
+          Drones: {totalDrones} · {planet.name}
+        </span>
         <button className="reset-btn" onClick={handleReset}>Reset</button>
       </header>
 
@@ -87,14 +134,16 @@ export default function App() {
 
         <div className="right-col">
           <div className="tabs">
-            <button className={`tab-btn${state.tab === 'drones'   ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'drones' })}>🤖 Drones</button>
-            <button className={`tab-btn${state.tab === 'research' ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'research' })}>🔬 Research</button>
-            <button className={`tab-btn${state.tab === 'planets'  ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'planets' })}>🪐 Planets</button>
+            <button className={`tab-btn${state.tab === 'drones'      ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'drones' })}>🤖 Drones</button>
+            <button className={`tab-btn${state.tab === 'research'    ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'research' })}>🔬 Research</button>
+            <button className={`tab-btn${state.tab === 'planets'     ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'planets' })}>🪐 Planets</button>
+            <button className={`tab-btn${state.tab === 'leaderboard' ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'leaderboard' })}>🏆 Ranks</button>
           </div>
 
-          {state.tab === 'drones'   && <DronePanel    state={state} onBuy={handleBuyDrone} />}
-          {state.tab === 'research' && <ResearchPanel  state={state} onBuy={handleBuyUpg} />}
-          {state.tab === 'planets'  && <PlanetsPanel   state={state} onNext={handleNextPlanet} />}
+          {state.tab === 'drones'      && <DronePanel       state={state} onBuy={handleBuyDrone} />}
+          {state.tab === 'research'    && <ResearchPanel    state={state} onBuy={handleBuyUpg} />}
+          {state.tab === 'planets'     && <PlanetsPanel     state={state} onNext={handleNextPlanet} />}
+          {state.tab === 'leaderboard' && <LeaderboardPanel currentUsername={username} totalOre={state.totalOreExtracted} />}
         </div>
       </div>
 

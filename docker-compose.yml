@@ -5,3 +5,14 @@ services:
     ports:
       - "3002:80"
     restart: unless-stopped
+    depends_on:
+      - extractor-api
+
+  extractor-api:
+    image: ghcr.io/atvriders/extractor-api:latest
+    volumes:
+      - extractor-api-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  extractor-api-data:
