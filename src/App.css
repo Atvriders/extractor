@@ -98,8 +98,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   user-select: none;
   border-radius: 12px;
 }
-.planet-wrapper:hover { transform: scale(1.03); filter: brightness(1.08); }
-.planet-wrapper.pressed { transform: scale(0.94); filter: brightness(0.9); }
+.planet-wrapper:hover { transform: scale(1.02); filter: brightness(1.05); }
 
 /* Floating ore text */
 .float-text {

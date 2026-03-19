@@ -1032,8 +1032,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const droneAnims    = useRef<DroneAnim[]>([]);
   const burstAnims    = useRef<DroneAnim[]>([]);
-  const [floats, setFloats]   = useState<FloatText[]>([]);
-  const [pressed, setPressed] = useState(false);
+  const [floats, setFloats] = useState<FloatText[]>([]);
   const { orePerClick } = computeStats(state);
 
   const planet  = getPlanet(state.currentPlanet);
@@ -1117,9 +1116,6 @@ export default function Planet({ state, onClickPlanet }: Props) {
     const id   = nextId++;
     setFloats(f => [...f, { id, x: e.clientX - rect.left, y: e.clientY - rect.top, value: Math.round(orePerClick) }]);
     setTimeout(() => setFloats(f => f.filter(ft => ft.id !== id)), 900);
-    setPressed(true);
-    setTimeout(() => setPressed(false), 120);
-
     // Spawn burst drones flying planet → ship on each click
     const kinds = buildTypeList(dronesRef.current);
     const burstCount = 3 + Math.floor(Math.random() * 3); // 3–5
@@ -1147,7 +1143,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
   return (
     <div className="planet-area">
       <div
-        className={`planet-wrapper${pressed ? ' pressed' : ''}`}
+        className="planet-wrapper"
         onClick={handleClick}
         style={{ position: 'relative', display: 'inline-block' }}
       >
