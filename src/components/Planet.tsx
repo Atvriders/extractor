@@ -550,18 +550,21 @@ function drawShip(ctx: CanvasRenderingContext2D, t: number) {
 }
 
 // ── Drone animation ────────────────────────────────────────────────────────
+type DroneKind = 'miner' | 'researcher' | 'trader' | 'fabricator';
+
 interface DroneAnim {
   surfAngle: number;
-  phase: number;      // 0 → at planet surface; 0.5 → at ship; 1 → back at surface
-  speed: number;      // phase per ms
+  phase: number;
+  speed: number;
   cpOutX: number; cpOutY: number;
   cpRetX: number; cpRetY: number;
-  colorHue: number;   // per-drone colour tint
+  kind: DroneKind;
+  seed: number;   // for per-drone randomness in draw
 }
 
-function makeDrone(idx: number): DroneAnim {
-  const rng        = seeded(0xd4ff0000 + idx * 97);
-  const surfAngle  = rng() * TWO_PI;
+function makeDrone(idx: number, kind: DroneKind): DroneAnim {
+  const rng       = seeded(0xd4ff0000 + idx * 97);
+  const surfAngle = rng() * TWO_PI;
   const sx = CX + Math.cos(surfAngle) * R;
   const sy = CY + Math.sin(surfAngle) * R;
   const mx = (sx + SHIP_X) * 0.5;
@@ -571,15 +574,23 @@ function makeDrone(idx: number): DroneAnim {
   const perpX = -dy / len, perpY = dx / len;
   const offset = (rng() - 0.5) * 70;
   return {
-    surfAngle,
-    phase:    rng(),
-    speed:    0.00020 + rng() * 0.00014,
-    cpOutX: mx + perpX * offset,
-    cpOutY: my + perpY * offset,
-    cpRetX: mx - perpX * offset,
-    cpRetY: my - perpY * offset,
-    colorHue: 190 + rng() * 60,
+    surfAngle, kind, seed: idx,
+    phase:  rng(),
+    speed:  0.00020 + rng() * 0.00014,
+    cpOutX: mx + perpX * offset, cpOutY: my + perpY * offset,
+    cpRetX: mx - perpX * offset, cpRetY: my - perpY * offset,
   };
+}
+
+// Build ordered list of drone types to animate (max 2 per type, max 8 total)
+function buildTypeList(drones: Record<string, number>): DroneKind[] {
+  const MAX = 2;
+  const out: DroneKind[] = [];
+  for (const k of ['miner','researcher','trader','fabricator'] as DroneKind[]) {
+    const n = Math.min(drones[k] ?? 0, MAX);
+    for (let i = 0; i < n; i++) out.push(k);
+  }
+  return out;
 }
 
 function quadBez(p: number, x0: number, y0: number, cx: number, cy: number, x1: number, y1: number) {
@@ -587,16 +598,208 @@ function quadBez(p: number, x0: number, y0: number, cx: number, cy: number, x1: 
   return { x: mt*mt*x0 + 2*mt*p*cx + p*p*x1, y: mt*mt*y0 + 2*mt*p*cy + p*p*y1 };
 }
 
-// Ease in-out for smooth acceleration/deceleration
 function easeInOut(t: number) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+// ── Per-type drone shapes ──────────────────────────────────────────────────
+
+// Miner: chunky orange hauler with front drill bit
+function drawMinerShape(ctx: CanvasRenderingContext2D, returning: boolean, glowPulse: number) {
+  // Thrust trail
+  const trail = ctx.createLinearGradient(-5, 0, -15, 0);
+  trail.addColorStop(0, `rgba(255,160,60,${glowPulse * 0.8})`);
+  trail.addColorStop(1, 'transparent');
+  ctx.beginPath(); ctx.moveTo(-5,-3); ctx.lineTo(-15,0); ctx.lineTo(-5,3);
+  ctx.fillStyle = trail; ctx.fill();
+
+  // Heavy hull — wide and squat
+  ctx.beginPath();
+  ctx.moveTo( 4,  0);   // nose tip
+  ctx.lineTo( 2, -5);
+  ctx.lineTo(-2, -6);
+  ctx.lineTo(-6, -5);
+  ctx.lineTo(-6,  5);
+  ctx.lineTo(-2,  6);
+  ctx.lineTo( 2,  5);
+  ctx.closePath();
+  ctx.fillStyle = returning ? 'hsl(28,100%,62%)' : 'hsl(28,85%,46%)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,200,100,0.6)'; ctx.lineWidth = 0.6; ctx.stroke();
+
+  // Drill bit at nose
+  ctx.beginPath();
+  ctx.moveTo( 4,  0);
+  ctx.lineTo( 9, -1.5);
+  ctx.lineTo(12,  0);
+  ctx.lineTo( 9,  1.5);
+  ctx.closePath();
+  ctx.fillStyle = '#ffcc44'; ctx.fill();
+  // Drill ridges
+  ctx.strokeStyle = 'rgba(255,200,80,0.7)'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(6,-1); ctx.lineTo(6,1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(8.5,-1.2); ctx.lineTo(8.5,1.2); ctx.stroke();
+
+  // Side vents
+  ctx.strokeStyle = 'rgba(255,140,30,0.5)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-1,-6); ctx.lineTo(-4,-6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-1, 6); ctx.lineTo(-4, 6); ctx.stroke();
+
+  // Cockpit port
+  ctx.beginPath(); ctx.arc(0, 0, 1.8, 0, TWO_PI);
+  ctx.fillStyle = returning ? 'rgba(255,220,120,0.9)' : 'rgba(255,180,80,0.7)';
+  ctx.fill();
+}
+
+// Researcher: sleek purple craft with sensor antenna and dish
+function drawResearcherShape(ctx: CanvasRenderingContext2D, returning: boolean, glowPulse: number, t: number, seed: number) {
+  // Trail
+  const trail = ctx.createLinearGradient(-3, 0, -14, 0);
+  trail.addColorStop(0, `rgba(180,80,255,${glowPulse * 0.75})`);
+  trail.addColorStop(1, 'transparent');
+  ctx.beginPath(); ctx.moveTo(-3,-2); ctx.lineTo(-14,0); ctx.lineTo(-3,2);
+  ctx.fillStyle = trail; ctx.fill();
+
+  // Thin elongated hull
+  ctx.beginPath();
+  ctx.moveTo( 9,  0);
+  ctx.lineTo( 6, -2.5);
+  ctx.lineTo(-2, -3);
+  ctx.lineTo(-5, -2);
+  ctx.lineTo(-5,  2);
+  ctx.lineTo(-2,  3);
+  ctx.lineTo( 6,  2.5);
+  ctx.closePath();
+  ctx.fillStyle = returning ? 'hsl(270,80%,68%)' : 'hsl(270,70%,48%)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(200,140,255,0.6)'; ctx.lineWidth = 0.5; ctx.stroke();
+
+  // Top antenna mast
+  ctx.strokeStyle = 'rgba(200,120,255,0.85)'; ctx.lineWidth = 0.7;
+  ctx.beginPath(); ctx.moveTo(2,-3); ctx.lineTo(2,-8); ctx.stroke();
+  // Antenna dish (rotating sensor sweep)
+  const dishAngle = t * 0.006 + seed;
+  ctx.beginPath();
+  ctx.arc(2, -8, 2.5, dishAngle, dishAngle + Math.PI);
+  ctx.strokeStyle = 'rgba(220,160,255,0.7)'; ctx.lineWidth = 0.8; ctx.stroke();
+  // Antenna tip pulse
+  const antPulse = 0.5 + 0.5 * Math.sin(t * 0.015 + seed);
+  ctx.beginPath(); ctx.arc(2, -8, 1, 0, TWO_PI);
+  ctx.fillStyle = `rgba(255,180,255,${antPulse * 0.9})`; ctx.fill();
+
+  // Sensor nose orb
+  ctx.beginPath(); ctx.arc(8, 0, 2, 0, TWO_PI);
+  const orbPulse = 0.5 + 0.5 * Math.sin(t * 0.01 + seed + 1);
+  ctx.fillStyle = returning ? `rgba(220,180,255,${0.7+orbPulse*0.3})` : `rgba(180,100,255,${0.6+orbPulse*0.3})`;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(220,160,255,0.5)'; ctx.lineWidth = 0.4; ctx.stroke();
+}
+
+// Trader: gold boxy hauler with cargo pods
+function drawTraderShape(ctx: CanvasRenderingContext2D, returning: boolean, glowPulse: number) {
+  // Trail (double engine)
+  for (const ey of [-3.5, 3.5]) {
+    const trail = ctx.createLinearGradient(-5, ey, -14, ey);
+    trail.addColorStop(0, `rgba(255,210,30,${glowPulse * 0.7})`);
+    trail.addColorStop(1, 'transparent');
+    ctx.beginPath(); ctx.moveTo(-5,ey-2); ctx.lineTo(-14,ey); ctx.lineTo(-5,ey+2);
+    ctx.fillStyle = trail; ctx.fill();
+  }
+
+  // Cargo pods (top & bottom, drawn first so hull overlaps)
+  ctx.fillStyle = returning ? 'hsl(42,90%,38%)' : 'hsl(42,80%,28%)';
+  ctx.strokeStyle = 'rgba(255,200,50,0.4)'; ctx.lineWidth = 0.5;
+  // Top pod
+  ctx.beginPath(); ctx.rect(-3,-8,10,5); ctx.fill(); ctx.stroke();
+  // Bottom pod
+  ctx.beginPath(); ctx.rect(-3, 3,10,5); ctx.fill(); ctx.stroke();
+  // Pod rivets
+  ctx.fillStyle = 'rgba(255,230,100,0.5)';
+  for (const py of [-6, -4]) { ctx.beginPath(); ctx.arc(1,py,0.8,0,TWO_PI); ctx.fill(); }
+  for (const py of [5, 7])   { ctx.beginPath(); ctx.arc(1,py,0.8,0,TWO_PI); ctx.fill(); }
+
+  // Main hull — fat box
+  ctx.beginPath();
+  ctx.moveTo( 7,  0);
+  ctx.lineTo( 5, -3);
+  ctx.lineTo(-4, -3);
+  ctx.lineTo(-6, -1.5);
+  ctx.lineTo(-6,  1.5);
+  ctx.lineTo(-4,  3);
+  ctx.lineTo( 5,  3);
+  ctx.closePath();
+  ctx.fillStyle = returning ? 'hsl(45,95%,55%)' : 'hsl(44,85%,42%)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,230,80,0.7)'; ctx.lineWidth = 0.6; ctx.stroke();
+
+  // Nose window
+  ctx.beginPath(); ctx.ellipse(5, 0, 2, 1.5, 0, 0, TWO_PI);
+  ctx.fillStyle = returning ? 'rgba(255,240,160,0.9)' : 'rgba(255,220,80,0.6)';
+  ctx.fill();
+
+  // Engine ports
+  for (const ey of [-3.5, 3.5]) {
+    ctx.beginPath(); ctx.arc(-5.5, ey, 1.8, 0, TWO_PI);
+    ctx.fillStyle = `rgba(255,180,20,${glowPulse * 0.85})`; ctx.fill();
+  }
+}
+
+// Fabricator: teal hexagonal with robotic arm
+function drawFabricatorShape(ctx: CanvasRenderingContext2D, returning: boolean, glowPulse: number, t: number, seed: number) {
+  // Trail
+  const trail = ctx.createLinearGradient(-4, 0, -14, 0);
+  trail.addColorStop(0, `rgba(20,255,180,${glowPulse * 0.75})`);
+  trail.addColorStop(1, 'transparent');
+  ctx.beginPath(); ctx.moveTo(-4,-2.5); ctx.lineTo(-14,0); ctx.lineTo(-4,2.5);
+  ctx.fillStyle = trail; ctx.fill();
+
+  // Robotic arm (extends from underside, animates)
+  const armAngle = Math.sin(t * 0.007 + seed) * 0.5;
+  ctx.save();
+  ctx.translate(2, 4);
+  ctx.rotate(armAngle);
+  ctx.strokeStyle = 'rgba(40,255,180,0.8)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,6); ctx.stroke();
+  // Claw
+  ctx.beginPath(); ctx.moveTo(-2,6); ctx.lineTo(0,5); ctx.lineTo(2,6);
+  ctx.strokeStyle = 'rgba(80,255,200,0.7)'; ctx.lineWidth = 0.8; ctx.stroke();
+  ctx.restore();
+
+  // Hexagonal hull
+  ctx.beginPath();
+  const sides = 6;
+  for (let i = 0; i < sides; i++) {
+    const a = (i / sides) * TWO_PI - Math.PI / 6;
+    const hx = Math.cos(a) * 6, hy = Math.sin(a) * 5;
+    if (i === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+  }
+  ctx.closePath();
+  ctx.fillStyle = returning ? 'hsl(162,90%,42%)' : 'hsl(162,80%,28%)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(40,255,180,0.7)'; ctx.lineWidth = 0.6; ctx.stroke();
+
+  // Gear/cog detail overlay
+  const gearAngle = t * 0.005 + seed;
+  ctx.strokeStyle = 'rgba(40,220,160,0.5)'; ctx.lineWidth = 0.6;
+  for (let i = 0; i < 6; i++) {
+    const a = gearAngle + (i / 6) * TWO_PI;
+    ctx.beginPath(); ctx.moveTo(Math.cos(a)*2, Math.sin(a)*2); ctx.lineTo(Math.cos(a)*4.5, Math.sin(a)*4); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(0, 0, 2, 0, TWO_PI);
+  ctx.fillStyle = 'rgba(0,200,140,0.9)'; ctx.fill();
+
+  // Eye/sensor
+  const eyePulse = 0.6 + 0.4 * Math.sin(t * 0.013 + seed);
+  ctx.beginPath(); ctx.arc(0, 0, 1, 0, TWO_PI);
+  ctx.fillStyle = `rgba(180,255,240,${eyePulse})`; ctx.fill();
+}
+
+// ── Engine glow (shared) ───────────────────────────────────────────────────
+const ENGINE_HUE: Record<DroneKind, number> = { miner: 30, researcher: 270, trader: 45, fabricator: 162 };
 
 function drawDrone(ctx: CanvasRenderingContext2D, drone: DroneAnim, t: number) {
   const surfX = CX + Math.cos(drone.surfAngle) * R;
   const surfY = CY + Math.sin(drone.surfAngle) * R;
 
-  // Phase: 0→0.42 fly to ship, 0.42→0.58 docked, 0.58→1 fly back
   const DOCK_START = 0.42, DOCK_END = 0.58;
-
   let px: number, py: number, angle: number, returning: boolean;
 
   if (drone.phase < DOCK_START) {
@@ -604,60 +807,34 @@ function drawDrone(ctx: CanvasRenderingContext2D, drone: DroneAnim, t: number) {
     const p2 = easeInOut(Math.min(1, drone.phase / DOCK_START + 0.01));
     const pos  = quadBez(p,  surfX, surfY, drone.cpOutX, drone.cpOutY, SHIP_X, SHIP_Y);
     const next = quadBez(p2, surfX, surfY, drone.cpOutX, drone.cpOutY, SHIP_X, SHIP_Y);
-    px = pos.x; py = pos.y;
-    angle = Math.atan2(next.y - pos.y, next.x - pos.x);
-    returning = false;
+    px = pos.x; py = pos.y; angle = Math.atan2(next.y - pos.y, next.x - pos.x); returning = false;
   } else if (drone.phase < DOCK_END) {
-    return; // hidden inside ship
+    return;
   } else {
     const p  = easeInOut((drone.phase - DOCK_END) / (1 - DOCK_END));
     const p2 = easeInOut(Math.min(1, (drone.phase - DOCK_END) / (1 - DOCK_END) + 0.01));
     const pos  = quadBez(p,  SHIP_X, SHIP_Y, drone.cpRetX, drone.cpRetY, surfX, surfY);
     const next = quadBez(p2, SHIP_X, SHIP_Y, drone.cpRetX, drone.cpRetY, surfX, surfY);
-    px = pos.x; py = pos.y;
-    angle = Math.atan2(next.y - pos.y, next.x - pos.x);
-    returning = true;
+    px = pos.x; py = pos.y; angle = Math.atan2(next.y - pos.y, next.x - pos.x); returning = true;
   }
 
   ctx.save();
   ctx.translate(px, py);
   ctx.rotate(angle);
 
-  // Engine glow
   const glowPulse = 0.55 + Math.sin(t * 0.012 + drone.surfAngle) * 0.22;
-  const glow = ctx.createRadialGradient(-6, 0, 0, -6, 0, 8);
-  glow.addColorStop(0, `hsla(${drone.colorHue},100%,70%,${glowPulse})`);
+  const hue = ENGINE_HUE[drone.kind];
+  const glow = ctx.createRadialGradient(-6, 0, 0, -6, 0, 10);
+  glow.addColorStop(0, `hsla(${hue},100%,70%,${glowPulse})`);
   glow.addColorStop(1, 'transparent');
-  ctx.fillStyle = glow; ctx.fillRect(-14, -8, 16, 16);
+  ctx.fillStyle = glow; ctx.fillRect(-16, -10, 20, 20);
 
-  // Thrust trail
-  ctx.beginPath();
-  ctx.moveTo(-4, -2); ctx.lineTo(-13, 0); ctx.lineTo(-4, 2);
-  const trail = ctx.createLinearGradient(-4, 0, -13, 0);
-  trail.addColorStop(0, `hsla(${drone.colorHue},100%,70%,${glowPulse * 0.75})`);
-  trail.addColorStop(1, 'transparent');
-  ctx.fillStyle = trail; ctx.fill();
-
-  // Drone hull (arrow / fighter shape)
-  ctx.beginPath();
-  ctx.moveTo( 6,  0);  // nose
-  ctx.lineTo( 0, -3);  // upper wing root
-  ctx.lineTo(-4, -2);  // engine
-  ctx.lineTo(-2,  0);  // centre notch
-  ctx.lineTo(-4,  2);
-  ctx.lineTo( 0,  3);  // lower wing root
-  ctx.closePath();
-
-  // Blue outbound, green returning (loaded with ore)
-  const fillColor = returning
-    ? `hsla(140,90%,55%,0.95)`
-    : `hsla(${drone.colorHue},85%,62%,0.95)`;
-  ctx.fillStyle = fillColor; ctx.fill();
-  ctx.strokeStyle = 'rgba(220,240,255,0.55)'; ctx.lineWidth = 0.5; ctx.stroke();
-
-  // Cockpit glint
-  ctx.beginPath(); ctx.arc(3, 0, 1.2, 0, TWO_PI);
-  ctx.fillStyle = 'rgba(200,240,255,0.8)'; ctx.fill();
+  switch (drone.kind) {
+    case 'miner':      drawMinerShape(ctx, returning, glowPulse); break;
+    case 'researcher': drawResearcherShape(ctx, returning, glowPulse, t, drone.seed); break;
+    case 'trader':     drawTraderShape(ctx, returning, glowPulse); break;
+    case 'fabricator': drawFabricatorShape(ctx, returning, glowPulse, t, drone.seed); break;
+  }
 
   ctx.restore();
 }
@@ -693,16 +870,14 @@ export default function Planet({ state, onClickPlanet }: Props) {
   const label   = damageLabel(damage);
   const barColor = damage < 0.4 ? '#22d3a0' : damage < 0.72 ? '#f5a623' : '#ff4040';
 
-  const totalDrones     = Object.values(state.drones).reduce((a, b) => a + b, 0);
-  const activeDroneCount = Math.min(totalDrones, 8);
-
   // Keep refs in sync so RAF loop reads current values without restarting
-  const damageRef           = useRef(damage);
-  const activeDroneCountRef = useRef(activeDroneCount);
-  const planetIdRef         = useRef(state.currentPlanet);
-  damageRef.current           = damage;
-  activeDroneCountRef.current = activeDroneCount;
-  planetIdRef.current         = state.currentPlanet;
+  const damageRef   = useRef(damage);
+  const planetIdRef = useRef(state.currentPlanet);
+  const dronesRef   = useRef(state.drones);
+  const typeSigRef  = useRef('');
+  damageRef.current   = damage;
+  planetIdRef.current = state.currentPlanet;
+  dronesRef.current   = state.drones;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -718,14 +893,19 @@ export default function Planet({ state, onClickPlanet }: Props) {
       const t = now - start;
       const dmg = damageRef.current;
       const pid = planetIdRef.current;
-      const droneCount = activeDroneCountRef.current;
 
-      // Sync drone array size
-      while (droneAnims.current.length < droneCount) {
-        droneAnims.current.push(makeDrone(droneAnims.current.length));
-      }
-      if (droneAnims.current.length > droneCount) {
-        droneAnims.current.length = droneCount;
+      // Sync drone array type composition
+      const typeList = buildTypeList(dronesRef.current);
+      const sig = typeList.join(',');
+      if (sig !== typeSigRef.current) {
+        typeSigRef.current = sig;
+        const prev = droneAnims.current;
+        droneAnims.current = typeList.map((kind, i) => {
+          const existing = prev[i];
+          // Reuse existing if same type, else create fresh
+          if (existing && existing.kind === kind) return existing;
+          return makeDrone(i, kind);
+        });
       }
 
       // Advance phases
