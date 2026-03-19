@@ -100,7 +100,7 @@ export default function App() {
   const totalStations = Object.values(state.stations ?? {}).reduce((a, b) => a + b, 0);
   const planet        = getPlanet(state.currentPlanet);
   const nextPlanet    = PLANETS[state.currentPlanet + 1];
-  const canAdvance    = nextPlanet && state.totalOreExtracted >= nextPlanet.unlockTotalOre;
+  const canAdvance    = nextPlanet && state.planetOreExtracted >= planet.damageThreshold;
 
   if (!username) {
     return <UsernameModal onConfirm={handleUsername} />;

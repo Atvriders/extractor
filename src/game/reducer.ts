@@ -103,8 +103,9 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'NEXT_PLANET': {
       const nextId = state.currentPlanet + 1;
       if (nextId >= PLANETS.length) return state;
+      const current = PLANETS[state.currentPlanet];
+      if (state.planetOreExtracted < current.damageThreshold) return state;
       const next = PLANETS[nextId];
-      if (state.totalOreExtracted < next.unlockTotalOre) return state;
       return {
         ...state,
         currentPlanet:      nextId,

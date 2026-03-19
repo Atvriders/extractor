@@ -23,7 +23,9 @@ export default function PlanetsPanel({ state, onNext }: Props) {
           const isUnlocked = state.totalOreExtracted >= p.unlockTotalOre;
           const isPast     = i < current;
           const damage     = isCurrent ? calcDamage(state.planetOreExtracted, p) : isPast ? 1 : 0;
-          const canAdvance = i === current + 1 && isUnlocked;
+          const currentPlanet = PLANETS[current];
+          const currentExhausted = state.planetOreExtracted >= currentPlanet.damageThreshold;
+          const canAdvance = i === current + 1 && currentExhausted;
 
           return (
             <div key={p.id} className={`planet-card ${isCurrent ? 'current' : ''} ${isPast ? 'past' : ''} ${!isUnlocked && !isPast && !isCurrent ? 'locked' : ''}`}>
