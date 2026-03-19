@@ -19,7 +19,8 @@ export function computeStats(s: GameState) {
   if (has('research_automation')) researcherRate *= 2;
 
   const cap = has('overclocked_fabricators') ? 0.80 : 0.60;
-  const fabDiscount = Math.min(s.drones.fabricator * 0.05, cap);
+  const rawFab = Number(s.drones.fabricator) || 0;
+  const fabDiscount = Math.min(rawFab * 0.05, cap);
 
   let globalMult = 1;
   if (has('crystal_seam'))      globalMult *= 1.25;

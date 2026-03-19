@@ -94,7 +94,11 @@ export function reducer(state: GameState, action: Action): GameState {
       return { ...state, tab: action.tab };
 
     case 'LOAD':
-      return { ...INITIAL_STATE, ...action.state };
+      return {
+        ...INITIAL_STATE,
+        ...action.state,
+        drones: { ...INITIAL_STATE.drones, ...(action.state.drones ?? {}) },
+      };
 
     default:
       return state;
