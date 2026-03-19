@@ -86,33 +86,15 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 /* ── Planet Area ──────────────────────────────────────────────────────────── */
 .planet-area { display: flex; flex-direction: column; align-items: center; gap: 10px; position: relative; }
-.planet-canvas { display: block; width: 300px; height: 300px; }
+.planet-canvas { display: block; width: 300px; height: 300px; border-radius: 12px; }
 .planet-wrapper {
   cursor: crosshair;
   transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s;
   user-select: none;
-  border-radius: 50%;
+  border-radius: 12px;
 }
 .planet-wrapper:hover { transform: scale(1.03); filter: brightness(1.08); }
 .planet-wrapper.pressed { transform: scale(0.94); filter: brightness(0.9); }
-
-/* Orbit ring (positioned over canvas) */
-.orbit-ring { border-radius: 50%; pointer-events: none; }
-.orbit-dot {
-  position: absolute;
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  top: 50%; left: 50%;
-  transform-origin: 0 0;
-  animation: orbit calc(3s + var(--i, 0) * 0.08s) linear infinite;
-  transform: rotate(calc(360deg * var(--i, 0) / var(--total, 1))) translateX(128px) translateY(-2.5px);
-  box-shadow: 0 0 5px var(--accent), 0 0 10px var(--accent)60;
-}
-@keyframes orbit {
-  from { transform: rotate(calc(360deg * var(--i,0) / var(--total,1))) translateX(128px) translateY(-2.5px); }
-  to   { transform: rotate(calc(360deg * var(--i,0) / var(--total,1) + 360deg)) translateX(128px) translateY(-2.5px); }
-}
 
 /* Floating ore text */
 .float-text {
@@ -478,8 +460,8 @@ button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   /* Planet side info stacks vertically beside canvas */
   .planet-side-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
 
-  /* Hide orbit ring on mobile (too cramped) */
-  .orbit-ring { display: none; }
+  /* Smaller canvas gets full square border */
+  .planet-canvas { border-radius: 8px !important; }
 
   /* Damage bar fills available width */
   .damage-bar-wrap { width: 100%; }
