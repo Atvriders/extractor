@@ -317,6 +317,48 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
 }
 
+/* ── Planet name badge ────────────────────────────────────────────────────── */
+.planet-name-badge {
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--accent); opacity: 0.75;
+}
+
+/* ── Advance button ───────────────────────────────────────────────────────── */
+.advance-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff; border: none; border-radius: 8px;
+  padding: 9px 18px; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 2px 16px #16a34a50, inset 0 1px 0 rgba(255,255,255,0.15);
+  transition: transform 0.12s, box-shadow 0.15s, filter 0.15s;
+  animation: advancePulse 2s ease-in-out infinite;
+}
+.advance-btn:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 6px 24px #16a34a70; }
+@keyframes advancePulse { 0%,100% { box-shadow: 0 2px 16px #16a34a50; } 50% { box-shadow: 0 2px 28px #22c55e80; } }
+
+/* ── Planets Panel ────────────────────────────────────────────────────────── */
+.planet-list { display: flex; flex-direction: column; gap: 10px; }
+.planet-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 15px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.planet-card.current { border-color: var(--accent); box-shadow: 0 0 16px var(--accent)20; }
+.planet-card.past    { opacity: 0.5; border-color: #1a2a1a; }
+.planet-card.locked  { opacity: 0.35; }
+
+.planet-card-icon { font-size: 30px; flex-shrink: 0; }
+.planet-card-info { flex: 1; min-width: 0; }
+.planet-card-name { font-weight: 600; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 8px; }
+.current-badge { font-size: 9px; letter-spacing: 2px; background: var(--accent)20; color: var(--accent); padding: 1px 6px; border-radius: 3px; border: 1px solid var(--accent)40; }
+.past-badge    { font-size: 9px; letter-spacing: 2px; background: #1a2a1a; color: var(--green); padding: 1px 6px; border-radius: 3px; }
+.planet-card-desc  { font-size: 11px; color: var(--muted); line-height: 1.4; margin-top: 3px; }
+.planet-card-stats { display: flex; gap: 12px; margin-top: 5px; }
+.pstat { font-size: 11px; color: var(--green); }
+.planet-advance-btn { flex-shrink: 0; white-space: nowrap; padding: 7px 14px; }
+
 /* ── Scrollbar ────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }

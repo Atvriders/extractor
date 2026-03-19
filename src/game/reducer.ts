@@ -1,6 +1,7 @@
 import type { GameState, Action, DroneType } from './types';
 import { computeStats, droneCost } from './stats';
 import { UPGRADES, isUnlocked, canAfford } from './upgrades';
+import { PLANETS } from './planets';
 
 export const INITIAL_STATE: GameState = {
   ore: 0,
@@ -10,8 +11,11 @@ export const INITIAL_STATE: GameState = {
   upgrades: [],
   totalClicks: 0,
   totalOreExtracted: 0,
+  planetOreExtracted: 0,
+  currentPlanet: 0,
   tab: 'drones',
   notification: '',
+  notifKey: 0,
 };
 
 export function reducer(state: GameState, action: Action): GameState {
@@ -19,14 +23,15 @@ export function reducer(state: GameState, action: Action): GameState {
 
     case 'TICK': {
       const { orePerSec, creditsPerSec, rpPerSec } = computeStats(state);
-      const dt = action.delta / 1000;
+      const dt      = action.delta / 1000;
       const oreGain = orePerSec * dt;
       return {
         ...state,
-        ore:                 state.ore + oreGain,
-        credits:             state.credits + creditsPerSec * dt,
-        rp:                  state.rp + rpPerSec * dt,
-        totalOreExtracted:   state.totalOreExtracted + oreGain,
+        ore:                state.ore     + oreGain,
+        credits:            state.credits + creditsPerSec * dt,
+        rp:                 state.rp      + rpPerSec * dt,
+        totalOreExtracted:  state.totalOreExtracted  + oreGain,
+        planetOreExtracted: state.planetOreExtracted + oreGain,
       };
     }
 
@@ -34,19 +39,18 @@ export function reducer(state: GameState, action: Action): GameState {
       const { orePerClick } = computeStats(state);
       return {
         ...state,
-        ore:               state.ore + orePerClick,
-        totalClicks:       state.totalClicks + 1,
-        totalOreExtracted: state.totalOreExtracted + orePerClick,
+        ore:                state.ore + orePerClick,
+        totalClicks:        state.totalClicks + 1,
+        totalOreExtracted:  state.totalOreExtracted  + orePerClick,
+        planetOreExtracted: state.planetOreExtracted + orePerClick,
       };
     }
 
     case 'BUY_DRONE': {
       const { fabDiscount } = computeStats(state);
       const drone = action.drone as DroneType;
-      const cost = droneCost(drone, state.drones[drone], fabDiscount);
-      if (state.ore < cost.ore || state.credits < cost.credits || state.rp < cost.rp) {
-        return state;
-      }
+      const cost  = droneCost(drone, state.drones[drone], fabDiscount);
+      if (state.ore < cost.ore || state.credits < cost.credits || state.rp < cost.rp) return state;
       return {
         ...state,
         ore:     state.ore     - cost.ore,
@@ -68,6 +72,21 @@ export function reducer(state: GameState, action: Action): GameState {
         credits:  state.credits - (upg.creditCost ?? 0),
         upgrades: [...state.upgrades, action.id],
         notification: `Researched: ${upg.name}`,
+        notifKey: state.notifKey + 1,
+      };
+    }
+
+    case 'NEXT_PLANET': {
+      const nextId = state.currentPlanet + 1;
+      if (nextId >= PLANETS.length) return state;
+      const next = PLANETS[nextId];
+      if (state.totalOreExtracted < next.unlockTotalOre) return state;
+      return {
+        ...state,
+        currentPlanet:      nextId,
+        planetOreExtracted: 0,
+        notification:       `Arrived at ${next.name}.`,
+        notifKey:           state.notifKey + 1,
       };
     }
 
@@ -75,7 +94,7 @@ export function reducer(state: GameState, action: Action): GameState {
       return { ...state, tab: action.tab };
 
     case 'LOAD':
-      return action.state;
+      return { ...INITIAL_STATE, ...action.state };
 
     default:
       return state;
