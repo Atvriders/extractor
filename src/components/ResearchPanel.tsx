@@ -6,6 +6,10 @@ interface Props {
   onBuy: (id: string) => void;
 }
 
+const UPG_NAME: Record<string, string> = Object.fromEntries(
+  UPGRADES.map(u => [u.id, u.name])
+);
+
 function fmt(n: number): string {
   return n >= 1000 ? (n / 1000).toFixed(1) + 'K' : n.toString();
 }
@@ -16,8 +20,8 @@ export default function ResearchPanel({ state, onBuy }: Props) {
       <h2 className="panel-title">Research</h2>
       <div className="research-list">
         {UPGRADES.map(upg => {
-          const purchased = state.upgrades.includes(upg.id);
-          const unlocked  = isUnlocked(upg, state.upgrades);
+          const purchased  = state.upgrades.includes(upg.id);
+          const unlocked   = isUnlocked(upg, state.upgrades);
           const affordable = canAfford(upg, state);
 
           if (purchased) {
@@ -30,10 +34,11 @@ export default function ResearchPanel({ state, onBuy }: Props) {
           }
 
           if (!unlocked) {
+            const reqNames = (upg.requires ?? []).map(r => UPG_NAME[r] ?? r).join(' + ');
             return (
               <div key={upg.id} className="research-card locked">
-                <div className="research-name">🔒 Locked</div>
-                <div className="research-desc">Requires: {upg.requires?.join(', ')}</div>
+                <div className="research-name">🔒 {upg.name}</div>
+                <div className="research-desc">Requires: {reqNames}</div>
               </div>
             );
           }

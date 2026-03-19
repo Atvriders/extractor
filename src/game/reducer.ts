@@ -1,5 +1,5 @@
-import type { GameState, Action, DroneType } from './types';
-import { computeStats, droneCost } from './stats';
+import type { GameState, Action, DroneType, StationType } from './types';
+import { computeStats, droneCost, stationCost } from './stats';
 import { UPGRADES, isUnlocked, canAfford } from './upgrades';
 import { PLANETS } from './planets';
 
@@ -7,7 +7,8 @@ export const INITIAL_STATE: GameState = {
   ore: 0,
   credits: 0,
   rp: 0,
-  drones: { miner: 0, researcher: 0, trader: 0, fabricator: 0 },
+  drones:   { miner: 0, researcher: 0, trader: 0, fabricator: 0 },
+  stations: { mining: 0, research: 0, market: 0, fabricator: 0 },
   upgrades: [],
   totalClicks: 0,
   totalOreExtracted: 0,
@@ -16,6 +17,13 @@ export const INITIAL_STATE: GameState = {
   tab: 'drones',
   notification: '',
   notifKey: 0,
+};
+
+const STATION_NAMES: Record<string, string> = {
+  mining:     'Mining Station',
+  research:   'Research Station',
+  market:     'Market Station',
+  fabricator: 'Fabricator Station',
 };
 
 export function reducer(state: GameState, action: Action): GameState {
@@ -57,7 +65,22 @@ export function reducer(state: GameState, action: Action): GameState {
         ore:     state.ore     - cost.ore,
         credits: state.credits - cost.credits,
         rp:      state.rp      - cost.rp,
-        drones:  { ...state.drones, [drone]: state.drones[drone] + 1 },
+        drones:  { ...state.drones, [drone]: (state.drones[drone] ?? 0) + 1 },
+      };
+    }
+
+    case 'BUY_STATION': {
+      const stType = action.station as StationType;
+      const count  = state.stations?.[stType] ?? 0;
+      const cost   = stationCost(stType, count);
+      if (state.ore < cost.ore || state.credits < cost.credits) return state;
+      return {
+        ...state,
+        ore:      state.ore      - cost.ore,
+        credits:  state.credits  - cost.credits,
+        stations: { ...INITIAL_STATE.stations, ...state.stations, [stType]: count + 1 },
+        notification: `${STATION_NAMES[stType] ?? stType} deployed!`,
+        notifKey: state.notifKey + 1,
       };
     }
 
@@ -98,7 +121,8 @@ export function reducer(state: GameState, action: Action): GameState {
       return {
         ...INITIAL_STATE,
         ...action.state,
-        drones: { ...INITIAL_STATE.drones, ...(action.state.drones ?? {}) },
+        drones:   { ...INITIAL_STATE.drones,   ...(action.state.drones   ?? {}) },
+        stations: { ...INITIAL_STATE.stations, ...(action.state.stations ?? {}) },
       };
 
     default:

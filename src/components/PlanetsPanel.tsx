@@ -9,7 +9,7 @@ function fmt(n: number): string {
   return n.toString();
 }
 
-const PLANET_ICONS = ['🌍', '🏜️', '🧊', '🌌'];
+const PLANET_ICONS = ['🌍', '🔴', '🧊', '🌑'];
 
 export default function PlanetsPanel({ state, onNext }: Props) {
   const current = state.currentPlanet;

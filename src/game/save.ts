@@ -17,8 +17,9 @@ export function loadGame(): GameState {
     return {
       ...INITIAL_STATE,
       ...parsed,
-      // Deep-merge drones so missing keys (old saves) default to 0 instead of undefined
-      drones: { ...INITIAL_STATE.drones, ...(parsed.drones ?? {}) },
+      // Deep-merge so missing keys in old saves default to 0 instead of undefined
+      drones:   { ...INITIAL_STATE.drones,   ...(parsed.drones   ?? {}) },
+      stations: { ...INITIAL_STATE.stations, ...(parsed.stations ?? {}) },
     };
   } catch {
     return INITIAL_STATE;

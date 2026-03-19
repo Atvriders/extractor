@@ -3,6 +3,7 @@ import Planet           from './components/Planet';
 import ResourceBar      from './components/ResourceBar';
 import DronePanel       from './components/DronePanel';
 import ResearchPanel    from './components/ResearchPanel';
+import StationsPanel    from './components/StationsPanel';
 import PlanetsPanel     from './components/PlanetsPanel';
 import LeaderboardPanel from './components/LeaderboardPanel';
 import UsernameModal    from './components/UsernameModal';
@@ -10,26 +11,24 @@ import { reducer }      from './game/reducer';
 import { loadGame, saveGame, resetGame } from './game/save';
 import { getPlanet, PLANETS } from './game/planets';
 import { apiLoad, apiSave } from './api';
-import type { DroneType, GameState } from './game/types';
+import type { DroneType, StationType, GameState } from './game/types';
 import './App.css';
 
 const USERNAME_KEY = 'extractor_username';
 
 export default function App() {
-  const [username, setUsername]     = useState<string | null>(() => localStorage.getItem(USERNAME_KEY));
-  const [apiReady, setApiReady]     = useState(false);
-  const [state, dispatch]           = useReducer(reducer, undefined, loadGame);
-  const [notifVisible, setNotif]    = useState(false);
-  const notifTimer                  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cloudSaveTimer              = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [username, setUsername]  = useState<string | null>(() => localStorage.getItem(USERNAME_KEY));
+  const [apiReady, setApiReady]  = useState(false);
+  const [state, dispatch]        = useReducer(reducer, undefined, loadGame);
+  const [notifVisible, setNotif] = useState(false);
+  const notifTimer               = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cloudSaveTimer           = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Username confirm: load cloud save, then start ──────────────────────────
+  // ── Username confirm: load cloud save, then start ─────────────────────────
   async function handleUsername(name: string) {
     localStorage.setItem(USERNAME_KEY, name);
     const cloud = await apiLoad(name);
-    if (cloud) {
-      dispatch({ type: 'LOAD', state: cloud as unknown as GameState });
-    }
+    if (cloud) dispatch({ type: 'LOAD', state: cloud as unknown as GameState });
     setUsername(name);
     setApiReady(true);
   }
@@ -44,7 +43,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Game loop at 60fps ─────────────────────────────────────────────────────
+  // ── Game loop at 60 fps ───────────────────────────────────────────────────
   useEffect(() => {
     let last = performance.now();
     let raf  = 0;
@@ -58,10 +57,13 @@ export default function App() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // ── Local save on meaningful changes ──────────────────────────────────────
-  useEffect(() => { saveGame(state); }, [state.upgrades, state.drones, state.currentPlanet]);
+  // ── Local save on meaningful state changes ────────────────────────────────
+  useEffect(() => {
+    saveGame(state);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.upgrades, state.drones, state.stations, state.currentPlanet]);
 
-  // ── Cloud save (debounced 10s) on state changes ────────────────────────────
+  // ── Cloud save (debounced 10s) ────────────────────────────────────────────
   useEffect(() => {
     if (!username || !apiReady) return;
     if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
@@ -70,7 +72,7 @@ export default function App() {
       apiSave(username, state);
     }, 10_000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.totalOreExtracted, state.upgrades, state.drones, state.currentPlanet]);
+  }, [state.totalOreExtracted, state.upgrades, state.drones, state.stations, state.currentPlanet]);
 
   // ── Periodic local save every 30s ─────────────────────────────────────────
   useEffect(() => {
@@ -87,19 +89,19 @@ export default function App() {
     notifTimer.current = setTimeout(() => setNotif(false), 3000);
   }, [state.notifKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleClick      = useCallback(() => dispatch({ type: 'CLICK' }), []);
-  const handleBuyDrone   = useCallback((d: DroneType) => dispatch({ type: 'BUY_DRONE', drone: d }), []);
-  const handleBuyUpg     = useCallback((id: string) => dispatch({ type: 'BUY_UPGRADE', id }), []);
-  const handleNextPlanet = useCallback(() => dispatch({ type: 'NEXT_PLANET' }), []);
-  const handleReset      = useCallback(() => { resetGame(); window.location.reload(); }, []);
+  const handleClick       = useCallback(() => dispatch({ type: 'CLICK' }), []);
+  const handleBuyDrone    = useCallback((d: DroneType)    => dispatch({ type: 'BUY_DRONE',    drone:   d }), []);
+  const handleBuyStation  = useCallback((s: StationType)  => dispatch({ type: 'BUY_STATION',  station: s }), []);
+  const handleBuyUpg      = useCallback((id: string)      => dispatch({ type: 'BUY_UPGRADE',  id }), []);
+  const handleNextPlanet  = useCallback(() => dispatch({ type: 'NEXT_PLANET' }), []);
+  const handleReset       = useCallback(() => { resetGame(); window.location.reload(); }, []);
 
-  const totalDrones = Object.values(state.drones).reduce((a, b) => a + b, 0);
-  const planet      = getPlanet(state.currentPlanet);
+  const totalDrones   = Object.values(state.drones).reduce((a, b) => a + b, 0);
+  const totalStations = Object.values(state.stations ?? {}).reduce((a, b) => a + b, 0);
+  const planet        = getPlanet(state.currentPlanet);
+  const nextPlanet    = PLANETS[state.currentPlanet + 1];
+  const canAdvance    = nextPlanet && state.totalOreExtracted >= nextPlanet.unlockTotalOre;
 
-  const nextPlanet = PLANETS[state.currentPlanet + 1];
-  const canAdvance = nextPlanet && state.totalOreExtracted >= nextPlanet.unlockTotalOre;
-
-  // Show username modal if not set
   if (!username) {
     return <UsernameModal onConfirm={handleUsername} />;
   }
@@ -110,7 +112,7 @@ export default function App() {
         <span className="game-title">⬡ EXTRACTOR</span>
         <span className="drone-total">
           {username && <span className="topbar-user">👤 {username} · </span>}
-          Drones: {totalDrones} · {planet.name}
+          Drones: {totalDrones} · Stations: {totalStations} · {planet.name}
         </span>
         <button className="reset-btn" onClick={handleReset}>Reset</button>
       </header>
@@ -135,12 +137,14 @@ export default function App() {
           <div className="tabs">
             <button className={`tab-btn${state.tab === 'drones'      ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'drones' })}>🤖 Drones</button>
             <button className={`tab-btn${state.tab === 'research'    ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'research' })}>🔬 Research</button>
+            <button className={`tab-btn${state.tab === 'stations'    ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'stations' })}>🏗️ Stations</button>
             <button className={`tab-btn${state.tab === 'planets'     ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'planets' })}>🪐 Planets</button>
             <button className={`tab-btn${state.tab === 'leaderboard' ? ' active' : ''}`} onClick={() => dispatch({ type: 'SET_TAB', tab: 'leaderboard' })}>🏆 Ranks</button>
           </div>
 
           {state.tab === 'drones'      && <DronePanel       state={state} onBuy={handleBuyDrone} />}
           {state.tab === 'research'    && <ResearchPanel    state={state} onBuy={handleBuyUpg} />}
+          {state.tab === 'stations'    && <StationsPanel    state={state} onBuy={handleBuyStation} />}
           {state.tab === 'planets'     && <PlanetsPanel     state={state} onNext={handleNextPlanet} />}
           {state.tab === 'leaderboard' && <LeaderboardPanel currentUsername={username} totalOre={state.totalOreExtracted} />}
         </div>

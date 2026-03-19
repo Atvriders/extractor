@@ -9,8 +9,9 @@ interface Props { state: GameState; onClickPlanet: () => void }
 let nextId = 0;
 
 // ── Layout constants ────────────────────────────────────────────────────────
-const CX = 150, CY = 162, R = 108;   // Planet center (shifted down to give ship room)
-const SHIP_X = 246, SHIP_Y = 22;      // Player spaceship (top-right, low orbit)
+const W = 420, H = 420;
+const CX = 210, CY = 222, R = 148;   // Planet (420×420 canvas, centred with ship room at top)
+const SHIP_X = 375, SHIP_Y = 32;      // Player spaceship (top-right, low orbit)
 const TWO_PI = Math.PI * 2;
 
 // ── Seeded RNG ─────────────────────────────────────────────────────────────
@@ -418,6 +419,175 @@ function drawVoid(ctx: CanvasRenderingContext2D, t: number, d: number) {
   aura.addColorStop(1, 'transparent');
   ctx.beginPath(); ctx.arc(CX, CY, R * 1.4, 0, TWO_PI);
   ctx.fillStyle = aura; ctx.fill();
+}
+
+// ── Stations in orbit ──────────────────────────────────────────────────────
+// Each type orbits at its own radius; multiple stations spread around the ring
+
+interface StationCounts { mining: number; research: number; market: number; fabricator: number }
+
+function drawMiningStation(ctx: CanvasRenderingContext2D, t: number, idx: number) {
+  // Orange industrial platform with drill arm
+  const armAngle = Math.sin(t * 0.004 + idx) * 0.4;
+  ctx.save();
+  // Body — boxy platform
+  ctx.beginPath(); ctx.rect(-9, -5, 18, 10);
+  const hull = ctx.createLinearGradient(-9,-5,9,5);
+  hull.addColorStop(0,'#3a2010'); hull.addColorStop(1,'#5a3518');
+  ctx.fillStyle = hull; ctx.fill();
+  ctx.strokeStyle='rgba(255,140,40,0.6)'; ctx.lineWidth=0.7; ctx.stroke();
+  // Drill arm
+  ctx.rotate(armAngle);
+  ctx.strokeStyle='rgba(255,160,50,0.9)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(0,5); ctx.lineTo(0,12); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-3,12); ctx.lineTo(0,11); ctx.lineTo(3,12);
+  ctx.strokeStyle='rgba(255,200,80,0.8)'; ctx.lineWidth=1; ctx.stroke();
+  ctx.restore();
+  // Running lights
+  const blink = Math.sin(t * 0.007 + idx) > 0;
+  ctx.beginPath(); ctx.arc(9, 0, 1.5, 0, TWO_PI);
+  ctx.fillStyle = blink ? 'rgba(255,120,30,0.9)' : 'rgba(255,120,30,0.2)'; ctx.fill();
+}
+
+function drawResearchStation(ctx: CanvasRenderingContext2D, t: number, idx: number) {
+  // Purple cross-shaped lab with rotating dish
+  const dishA = t * 0.005 + idx * 1.2;
+  // Solar panels (cross arms)
+  ctx.fillStyle = '#1a1040';
+  ctx.strokeStyle = 'rgba(160,80,255,0.5)'; ctx.lineWidth = 0.6;
+  for (const [dx,dy,dw,dh] of [[-18,-3,36,6],[-3,-18,6,36]] as number[][]) {
+    ctx.beginPath(); ctx.rect(dx,dy,dw,dh); ctx.fill(); ctx.stroke();
+  }
+  // Panel cells
+  ctx.strokeStyle='rgba(120,60,220,0.4)'; ctx.lineWidth=0.4;
+  for (let xi=-16; xi<=10; xi+=6) { ctx.beginPath(); ctx.moveTo(xi,-3); ctx.lineTo(xi,3); ctx.stroke(); }
+  for (let yi=-16; yi<=10; yi+=6) { ctx.beginPath(); ctx.moveTo(-3,yi); ctx.lineTo(3,yi); ctx.stroke(); }
+  // Central hub
+  ctx.beginPath(); ctx.arc(0,0,5,0,TWO_PI);
+  ctx.fillStyle='hsl(270,60%,22%)'; ctx.fill();
+  ctx.strokeStyle='rgba(180,100,255,0.7)'; ctx.lineWidth=0.8; ctx.stroke();
+  // Rotating dish
+  ctx.save(); ctx.rotate(dishA);
+  ctx.strokeStyle='rgba(200,140,255,0.85)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,-5); ctx.lineTo(0,-10); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0,-10,3.5,0,Math.PI);
+  ctx.strokeStyle='rgba(220,160,255,0.7)'; ctx.stroke();
+  ctx.restore();
+  // Pulse dot
+  const p = 0.5+0.5*Math.sin(t*0.01+idx);
+  ctx.beginPath(); ctx.arc(0,0,2,0,TWO_PI);
+  ctx.fillStyle=`rgba(200,140,255,${p})`; ctx.fill();
+}
+
+function drawMarketStation(ctx: CanvasRenderingContext2D, t: number, idx: number) {
+  // Gold round hub with docking spires
+  // Outer ring
+  ctx.beginPath(); ctx.arc(0,0,12,0,TWO_PI);
+  ctx.strokeStyle='rgba(200,160,30,0.5)'; ctx.lineWidth=1.5; ctx.stroke();
+  // Docking spires
+  for (let i=0;i<4;i++) {
+    const a = (i/4)*TWO_PI + t*0.001;
+    ctx.save(); ctx.rotate(a);
+    ctx.strokeStyle='rgba(220,180,50,0.7)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(12,0); ctx.lineTo(18,0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(18,-2); ctx.lineTo(18,2);
+    ctx.strokeStyle='rgba(255,220,80,0.9)'; ctx.lineWidth=0.8; ctx.stroke();
+    ctx.restore();
+  }
+  // Main hub body
+  ctx.beginPath(); ctx.arc(0,0,8,0,TWO_PI);
+  const gold=ctx.createRadialGradient(0,0,0,0,0,8);
+  gold.addColorStop(0,'#4a3800'); gold.addColorStop(1,'#2a2000');
+  ctx.fillStyle=gold; ctx.fill();
+  ctx.strokeStyle='rgba(255,200,50,0.7)'; ctx.lineWidth=0.8; ctx.stroke();
+  // Rotating beacon
+  const beaconA = t*0.003+idx;
+  ctx.save(); ctx.rotate(beaconA);
+  ctx.fillStyle=`rgba(255,220,80,${0.5+0.4*Math.sin(t*0.008+idx)})`;
+  ctx.beginPath(); ctx.arc(5,0,1.5,0,TWO_PI); ctx.fill();
+  ctx.restore();
+  // Centre
+  ctx.beginPath(); ctx.arc(0,0,3,0,TWO_PI);
+  ctx.fillStyle='rgba(255,200,60,0.8)'; ctx.fill();
+}
+
+function drawFabricatorStation(ctx: CanvasRenderingContext2D, t: number, idx: number) {
+  // Teal hexagonal factory with rotating ring and arms
+  const gearA = t*0.004+idx*0.7;
+  // Outer gear ring
+  ctx.strokeStyle='rgba(40,200,160,0.4)'; ctx.lineWidth=1;
+  for(let i=0;i<8;i++){
+    const a=gearA+(i/8)*TWO_PI;
+    ctx.save(); ctx.rotate(a);
+    ctx.beginPath(); ctx.rect(10,-1.5,5,3); ctx.fillStyle='rgba(40,180,140,0.4)'; ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  // Hex hull
+  ctx.beginPath();
+  for(let i=0;i<6;i++){
+    const a=(i/6)*TWO_PI-Math.PI/6;
+    const hx=Math.cos(a)*9, hy=Math.sin(a)*9;
+    if(i===0) ctx.moveTo(hx,hy); else ctx.lineTo(hx,hy);
+  }
+  ctx.closePath();
+  ctx.fillStyle='#0e2820'; ctx.fill();
+  ctx.strokeStyle='rgba(40,220,170,0.7)'; ctx.lineWidth=0.8; ctx.stroke();
+  // Inner rotating detail
+  ctx.save(); ctx.rotate(-gearA*1.5);
+  ctx.strokeStyle='rgba(40,200,160,0.5)'; ctx.lineWidth=0.6;
+  for(let i=0;i<6;i++){
+    const a=(i/6)*TWO_PI;
+    ctx.beginPath(); ctx.moveTo(Math.cos(a)*3,Math.sin(a)*3); ctx.lineTo(Math.cos(a)*7,Math.sin(a)*7); ctx.stroke();
+  }
+  ctx.restore();
+  // Core
+  ctx.beginPath(); ctx.arc(0,0,3,0,TWO_PI);
+  ctx.fillStyle=`rgba(40,255,180,${0.6+0.3*Math.sin(t*0.01+idx)})`; ctx.fill();
+}
+
+function drawStations(ctx: CanvasRenderingContext2D, sm: StationCounts, t: number) {
+  // Orbit radii for each station type
+  const ORBITS: Record<string,number> = {
+    mining:     R + 44,
+    research:   R + 80,
+    market:     R + 114,
+    fabricator: R + 54,
+  };
+  const ANGLE_OFFSETS: Record<string,number> = {
+    mining: 0, research: 0.8, market: 0, fabricator: 2.5,
+  };
+  const ORBIT_SPEEDS: Record<string,number> = {
+    mining: 0.00018, research: 0.00013, market: 0.00009, fabricator: -0.00022,
+  };
+
+  const types = ['mining','research','market','fabricator'] as const;
+  for (const type of types) {
+    const count = Math.min(sm[type] ?? 0, 3);
+    if (count === 0) continue;
+    const orbitR = ORBITS[type];
+    const speed  = ORBIT_SPEEDS[type];
+    const baseA  = ANGLE_OFFSETS[type] + t * speed;
+
+    // Faint orbit ring
+    ctx.beginPath(); ctx.arc(CX, CY, orbitR, 0, TWO_PI);
+    ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=0.6; ctx.stroke();
+
+    for (let i = 0; i < count; i++) {
+      const angle = baseA + (i / count) * TWO_PI;
+      const sx = CX + Math.cos(angle) * orbitR;
+      const sy = CY + Math.sin(angle) * orbitR;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(angle + Math.PI / 2); // face toward planet
+      switch (type) {
+        case 'mining':     drawMiningStation(ctx, t, i); break;
+        case 'research':   drawResearchStation(ctx, t, i); break;
+        case 'market':     drawMarketStation(ctx, t, i); break;
+        case 'fabricator': drawFabricatorStation(ctx, t, i); break;
+      }
+      ctx.restore();
+    }
+  }
 }
 
 // ── Planet renderer (no clearRect — caller handles background) ─────────────
@@ -874,10 +1044,12 @@ export default function Planet({ state, onClickPlanet }: Props) {
   const damageRef   = useRef(damage);
   const planetIdRef = useRef(state.currentPlanet);
   const dronesRef   = useRef(state.drones);
+  const stationsRef = useRef<StationCounts>(state.stations as StationCounts ?? { mining: 0, research: 0, market: 0, fabricator: 0 });
   const typeSigRef  = useRef('');
   damageRef.current   = damage;
   planetIdRef.current = state.currentPlanet;
   dronesRef.current   = state.drones;
+  stationsRef.current = state.stations ?? { mining: 0, research: 0, market: 0, fabricator: 0 };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -914,26 +1086,15 @@ export default function Planet({ state, onClickPlanet }: Props) {
       }
 
       // ── Draw ──────────────────────────────────────────────────────────
-      // Background
       ctx.fillStyle = '#070c14';
-      ctx.fillRect(0, 0, 300, 300);
+      ctx.fillRect(0, 0, W, H);
 
-      // Stars
       drawStars(ctx, t);
-
-      // Planet
       drawPlanet(ctx, t, pid, dmg);
-
-      // 3D shadow hemisphere
       draw3DShadow(ctx);
-
-      // Ship (draw before drones so drones appear in front)
+      drawStations(ctx, stationsRef.current, t);
       drawShip(ctx, t);
-
-      // Drones
-      for (const d of droneAnims.current) {
-        drawDrone(ctx, d, t);
-      }
+      for (const d of droneAnims.current) drawDrone(ctx, d, t);
 
       raf = requestAnimationFrame(loop);
     }
@@ -961,7 +1122,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
         onClick={handleClick}
         style={{ position: 'relative', display: 'inline-block' }}
       >
-        <canvas ref={canvasRef} width={300} height={300} className="planet-canvas" />
+        <canvas ref={canvasRef} width={W} height={H} className="planet-canvas" />
         {floats.map(ft => (
           <div key={ft.id} className="float-text" style={{ left: ft.x, top: ft.y }}>
             +{ft.value} ore
