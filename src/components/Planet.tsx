@@ -728,6 +728,8 @@ interface DroneAnim {
   speed: number;
   cpOutX: number; cpOutY: number;
   cpRetX: number; cpRetY: number;
+  bezOffset: number;  // perpendicular bezier offset — stored so CPs can be recomputed
+  targetX: number; targetY: number;  // current target (ship or station), updated each frame
   kind: DroneKind;
   seed: number;   // for per-drone randomness in draw
 }
@@ -742,13 +744,15 @@ function makeDrone(idx: number, kind: DroneKind): DroneAnim {
   const dx = SHIP_X - sx, dy = SHIP_Y - sy;
   const len = Math.sqrt(dx * dx + dy * dy) || 1;
   const perpX = -dy / len, perpY = dx / len;
-  const offset = (rng() - 0.5) * 70;
+  const bezOffset = (rng() - 0.5) * 70;
   return {
     surfAngle, kind, seed: idx,
     phase:  rng(),
     speed:  0.00020 + rng() * 0.00014,
-    cpOutX: mx + perpX * offset, cpOutY: my + perpY * offset,
-    cpRetX: mx - perpX * offset, cpRetY: my - perpY * offset,
+    bezOffset,
+    targetX: SHIP_X, targetY: SHIP_Y,
+    cpOutX: mx + perpX * bezOffset, cpOutY: my + perpY * bezOffset,
+    cpRetX: mx - perpX * bezOffset, cpRetY: my - perpY * bezOffset,
   };
 }
 
@@ -965,6 +969,43 @@ function drawFabricatorShape(ctx: CanvasRenderingContext2D, returning: boolean, 
 // ── Engine glow (shared) ───────────────────────────────────────────────────
 const ENGINE_HUE: Record<DroneKind, number> = { miner: 30, researcher: 270, trader: 45, fabricator: 162 };
 
+// Maps drone kind to its matching station type
+const DRONE_STATION: Record<DroneKind, 'mining' | 'research' | 'market' | 'fabricator'> = {
+  miner:      'mining',
+  researcher: 'research',
+  trader:     'market',
+  fabricator: 'fabricator',
+};
+
+// Station orbit parameters — must match drawStations values
+const ST_ORBITS:  Record<string, number> = { mining: R+44, research: R+80, market: R+114, fabricator: R+54 };
+const ST_SPEEDS:  Record<string, number> = { mining: 0.00018, research: 0.00013, market: 0.00009, fabricator: -0.00022 };
+const ST_OFFSETS: Record<string, number> = { mining: 0, research: 0.8, market: 0, fabricator: 2.5 };
+
+function getTarget(kind: DroneKind, sm: StationCounts, t: number): [number, number] {
+  const type = DRONE_STATION[kind];
+  if ((sm[type] ?? 0) === 0) return [SHIP_X, SHIP_Y];
+  const angle = ST_OFFSETS[type] + t * ST_SPEEDS[type];
+  return [
+    CX + Math.cos(angle) * ST_ORBITS[type],
+    CY + Math.sin(angle) * ST_ORBITS[type],
+  ];
+}
+
+function recomputeCPs(d: DroneAnim) {
+  const sx = CX + Math.cos(d.surfAngle) * R;
+  const sy = CY + Math.sin(d.surfAngle) * R;
+  const mx = (sx + d.targetX) * 0.5;
+  const my = (sy + d.targetY) * 0.5;
+  const dx = d.targetX - sx, dy = d.targetY - sy;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const perpX = -dy / len, perpY = dx / len;
+  d.cpOutX = mx + perpX * d.bezOffset;
+  d.cpOutY = my + perpY * d.bezOffset;
+  d.cpRetX = mx - perpX * d.bezOffset;
+  d.cpRetY = my - perpY * d.bezOffset;
+}
+
 function drawDrone(ctx: CanvasRenderingContext2D, drone: DroneAnim, t: number) {
   const surfX = CX + Math.cos(drone.surfAngle) * R;
   const surfY = CY + Math.sin(drone.surfAngle) * R;
@@ -975,16 +1016,16 @@ function drawDrone(ctx: CanvasRenderingContext2D, drone: DroneAnim, t: number) {
   if (drone.phase < DOCK_START) {
     const p  = easeInOut(drone.phase / DOCK_START);
     const p2 = easeInOut(Math.min(1, drone.phase / DOCK_START + 0.01));
-    const pos  = quadBez(p,  surfX, surfY, drone.cpOutX, drone.cpOutY, SHIP_X, SHIP_Y);
-    const next = quadBez(p2, surfX, surfY, drone.cpOutX, drone.cpOutY, SHIP_X, SHIP_Y);
+    const pos  = quadBez(p,  surfX, surfY, drone.cpOutX, drone.cpOutY, drone.targetX, drone.targetY);
+    const next = quadBez(p2, surfX, surfY, drone.cpOutX, drone.cpOutY, drone.targetX, drone.targetY);
     px = pos.x; py = pos.y; angle = Math.atan2(next.y - pos.y, next.x - pos.x); returning = false;
   } else if (drone.phase < DOCK_END) {
     return;
   } else {
     const p  = easeInOut((drone.phase - DOCK_END) / (1 - DOCK_END));
     const p2 = easeInOut(Math.min(1, (drone.phase - DOCK_END) / (1 - DOCK_END) + 0.01));
-    const pos  = quadBez(p,  SHIP_X, SHIP_Y, drone.cpRetX, drone.cpRetY, surfX, surfY);
-    const next = quadBez(p2, SHIP_X, SHIP_Y, drone.cpRetX, drone.cpRetY, surfX, surfY);
+    const pos  = quadBez(p,  drone.targetX, drone.targetY, drone.cpRetX, drone.cpRetY, surfX, surfY);
+    const next = quadBez(p2, drone.targetX, drone.targetY, drone.cpRetX, drone.cpRetY, surfX, surfY);
     px = pos.x; py = pos.y; angle = Math.atan2(next.y - pos.y, next.x - pos.x); returning = true;
   }
 
@@ -1032,6 +1073,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const droneAnims    = useRef<DroneAnim[]>([]);
   const burstAnims    = useRef<DroneAnim[]>([]);
+  const tRef          = useRef(0);
   const [floats, setFloats] = useState<FloatText[]>([]);
   const { orePerClick } = computeStats(state);
 
@@ -1063,6 +1105,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
       const delta = Math.min(now - lastNow, 100); // clamp for tab switching
       lastNow = now;
       const t = now - start;
+      tRef.current = t;
       const dmg = damageRef.current;
       const pid = planetIdRef.current;
 
@@ -1080,9 +1123,12 @@ export default function Planet({ state, onClickPlanet }: Props) {
         });
       }
 
-      // Advance phases
+      // Advance phases + update targets
       for (const d of droneAnims.current) {
         d.phase = (d.phase + d.speed * delta) % 1;
+        const [tx, ty] = getTarget(d.kind, stationsRef.current, t);
+        d.targetX = tx; d.targetY = ty;
+        recomputeCPs(d);
       }
 
       // ── Draw ──────────────────────────────────────────────────────────
@@ -1096,8 +1142,13 @@ export default function Planet({ state, onClickPlanet }: Props) {
       drawShip(ctx, t);
       for (const d of droneAnims.current) drawDrone(ctx, d, t);
 
-      // Burst drones: one-shot planet→ship, vanish on dock
-      for (const d of burstAnims.current) d.phase += d.speed * delta;
+      // Burst drones: one-shot planet→target, vanish on dock
+      for (const d of burstAnims.current) {
+        d.phase += d.speed * delta;
+        const [tx, ty] = getTarget(d.kind, stationsRef.current, t);
+        d.targetX = tx; d.targetY = ty;
+        recomputeCPs(d);
+      }
       burstAnims.current = burstAnims.current.filter(d => d.phase < 0.42);
       for (const d of burstAnims.current) drawDrone(ctx, d, t);
 
@@ -1116,26 +1167,27 @@ export default function Planet({ state, onClickPlanet }: Props) {
     const id   = nextId++;
     setFloats(f => [...f, { id, x: e.clientX - rect.left, y: e.clientY - rect.top, value: Math.round(orePerClick) }]);
     setTimeout(() => setFloats(f => f.filter(ft => ft.id !== id)), 900);
-    // Spawn burst drones flying planet → ship on each click
+    // Spawn burst drones flying planet → target on each click
     const kinds = buildTypeList(dronesRef.current);
     const burstCount = 3 + Math.floor(Math.random() * 3); // 3–5
     for (let i = 0; i < burstCount; i++) {
       const kind = kinds.length > 0 ? kinds[Math.floor(Math.random() * kinds.length)] : 'miner';
       const angle = Math.random() * TWO_PI;
-      const sx = CX + Math.cos(angle) * R;
-      const sy = CY + Math.sin(angle) * R;
-      const mx = (sx + SHIP_X) * 0.5;
-      const my = (sy + SHIP_Y) * 0.5;
-      const dx = SHIP_X - sx, dy = SHIP_Y - sy;
-      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const perpX = -dy / len, perpY = dx / len;
-      const off = (Math.random() - 0.5) * 80;
+      const bezOffset = (Math.random() - 0.5) * 80;
+      const [tx, ty] = getTarget(kind, stationsRef.current, tRef.current);
+      const bsx = CX + Math.cos(angle) * R, bsy = CY + Math.sin(angle) * R;
+      const bmx = (bsx + tx) * 0.5, bmy = (bsy + ty) * 0.5;
+      const bdx = tx - bsx, bdy = ty - bsy;
+      const blen = Math.sqrt(bdx*bdx + bdy*bdy) || 1;
+      const bperpX = -bdy / blen, bperpY = bdx / blen;
       burstAnims.current.push({
         surfAngle: angle, kind, seed: Math.random() * 1000,
         phase: 0,
         speed: 0.0009 + Math.random() * 0.0006,
-        cpOutX: mx + perpX * off, cpOutY: my + perpY * off,
-        cpRetX: mx - perpX * off, cpRetY: my - perpY * off,
+        bezOffset,
+        targetX: tx, targetY: ty,
+        cpOutX: bmx + bperpX * bezOffset, cpOutY: bmy + bperpY * bezOffset,
+        cpRetX: bmx - bperpX * bezOffset, cpRetY: bmy - bperpY * bezOffset,
       });
     }
   }, [onClickPlanet, orePerClick]);
