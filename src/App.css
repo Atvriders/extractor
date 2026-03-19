@@ -173,6 +173,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   content: ''; position: absolute; inset: 0;
   background: linear-gradient(to bottom, var(--accent)10, transparent);
   opacity: 0; transition: opacity 0.2s;
+  pointer-events: none;
 }
 .tab-btn:hover::before { opacity: 1; }
 .tab-btn:hover { color: var(--text); }
@@ -201,6 +202,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   content: ''; position: absolute; inset: 0;
   background: linear-gradient(135deg, var(--accent)06, transparent 60%);
   opacity: 0; transition: opacity 0.2s;
+  pointer-events: none;
 }
 .drone-card:not(.unaffordable):hover {
   border-color: var(--accent); box-shadow: 0 0 16px var(--accent)20;
