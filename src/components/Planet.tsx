@@ -1157,7 +1157,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
 
       <div className="planet-side-info">
         <div className="planet-name-badge">{planet.name}</div>
-        <div className="damage-bar-wrap">
+        <div className="damage-bar-wrap" key={state.currentPlanet}>
           <div className="damage-bar-label">
             <span>EXTRACTION DAMAGE</span>
             <span style={{ color: barColor }}>{Math.round(damage * 100)}%</span>

@@ -1,5 +1,6 @@
 import type { GameState } from '../game/types';
 import { UPGRADES, isUnlocked, canAfford } from '../game/upgrades';
+import { computeStats } from '../game/stats';
 
 interface Props {
   state: GameState;
@@ -15,14 +16,17 @@ function fmt(n: number): string {
 }
 
 export default function ResearchPanel({ state, onBuy }: Props) {
+  const { researchDiscount } = computeStats(state);
+
   return (
     <div className="panel">
       <h2 className="panel-title">Research</h2>
       <div className="research-list">
         {UPGRADES.map(upg => {
-          const purchased  = state.upgrades.includes(upg.id);
-          const unlocked   = isUnlocked(upg, state.upgrades);
-          const affordable = canAfford(upg, state);
+          const purchased    = state.upgrades.includes(upg.id);
+          const unlocked     = isUnlocked(upg, state.upgrades);
+          const affordable   = canAfford(upg, state, researchDiscount);
+          const discountedRp = Math.ceil(upg.rpCost * (1 - researchDiscount));
 
           if (purchased) {
             return (
@@ -48,7 +52,7 @@ export default function ResearchPanel({ state, onBuy }: Props) {
               <div className="research-header">
                 <div className="research-name">{upg.name}</div>
                 <div className="research-cost">
-                  <span className="cost-item rp">{fmt(upg.rpCost)} RP</span>
+                  <span className="cost-item rp">{fmt(discountedRp)} RP</span>
                   {upg.creditCost ? <span className="cost-item cred">{fmt(upg.creditCost)} cr</span> : null}
                 </div>
               </div>

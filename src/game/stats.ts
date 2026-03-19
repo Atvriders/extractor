@@ -53,22 +53,29 @@ export function computeStats(s: GameState) {
   const stationRpFlat     =     (sm.research  ?? 0) * 0.5;    // +0.5 RP/sec flat per research station
   const stationCreditMult = 1 + (sm.market    ?? 0) * 0.15;   // +15% credits/sec per market station
 
+  // ── Secondary drone bonuses ────────────────────────────────────────────────
+  const minerClickBonus    = 1 + Math.min((s.drones.miner ?? 0) * 0.02, 0.50);
+  const fabricatorOreMult  = 1 + Math.min(rawFab * 0.008, 0.15);
+  const traderRpFlat       = (s.drones.trader ?? 0) * 0.02;
+  const researchDiscount   = Math.min((s.drones.researcher ?? 0) * 0.01, 0.25);
+
   // ── Per-second totals ──────────────────────────────────────────────────────
   const autoRate  = has('auto_extractor') ? 2 : 0;
   const orePerSec =
-    ((s.drones.miner * minerRate * globalMult) + autoRate) * planetMult * stationOreMult;
+    ((s.drones.miner * minerRate * globalMult) + autoRate) * planetMult * stationOreMult * fabricatorOreMult;
 
   const creditsPerSec =
     s.drones.trader * traderRate * globalMult * creditMult * stationCreditMult;
 
   const rpPerSec =
-    s.drones.researcher * researcherRate + stationRpFlat;
+    s.drones.researcher * researcherRate + stationRpFlat + traderRpFlat;
 
   return {
-    orePerClick: orePerClick * planetMult,
+    orePerClick: orePerClick * planetMult * minerClickBonus,
     orePerSec, creditsPerSec, rpPerSec,
     fabDiscount, globalMult, planetMult,
     stationOreMult, stationCreditMult, stationRpFlat,
+    researchDiscount, minerClickBonus,
   };
 }
 

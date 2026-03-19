@@ -13,38 +13,43 @@ const PLANET_ICONS = ['🌍', '🔴', '🧊', '🌑'];
 
 export default function PlanetsPanel({ state, onNext }: Props) {
   const current = state.currentPlanet;
+  const currentPlanetCfg = getPlanet(current);
+  const currentExhausted = state.planetOreExtracted >= currentPlanetCfg.damageThreshold;
 
   return (
     <div className="panel">
       <h2 className="panel-title">Planets</h2>
       <div className="planet-list">
         {PLANETS.map((p, i) => {
-          const isCurrent  = i === current;
-          const isUnlocked = state.totalOreExtracted >= p.unlockTotalOre;
-          const isPast     = i < current;
-          const damage     = isCurrent ? calcDamage(state.planetOreExtracted, p) : isPast ? 1 : 0;
-          const currentPlanet = PLANETS[current];
-          const currentExhausted = state.planetOreExtracted >= currentPlanet.damageThreshold;
-          const canAdvance = i === current + 1 && currentExhausted;
+          const isCurrent = i === current;
+          const isPast    = i < current;
+          const isNext    = i === current + 1;
+          const isLocked  = i > current + 1;
+          const damage    = isCurrent ? calcDamage(state.planetOreExtracted, p) : isPast ? 1 : 0;
 
           return (
-            <div key={p.id} className={`planet-card ${isCurrent ? 'current' : ''} ${isPast ? 'past' : ''} ${!isUnlocked && !isPast && !isCurrent ? 'locked' : ''}`}>
-              <div className="planet-card-icon">{isUnlocked || isCurrent ? PLANET_ICONS[i] : '🔒'}</div>
+            <div key={p.id} className={`planet-card ${isCurrent ? 'current' : ''} ${isPast ? 'past' : ''} ${isLocked ? 'locked' : ''}`}>
+              <div className="planet-card-icon">{isLocked ? '🔒' : PLANET_ICONS[i]}</div>
               <div className="planet-card-info">
                 <div className="planet-card-name">
                   {p.name}
                   {isCurrent && <span className="current-badge">CURRENT</span>}
                   {isPast    && <span className="past-badge">EXHAUSTED</span>}
                 </div>
-                <div className="planet-card-desc">{isUnlocked || isCurrent ? p.description : `Unlock at ${fmt(p.unlockTotalOre)} total ore`}</div>
-                {(isUnlocked || isCurrent) && (
+                <div className="planet-card-desc">
+                  {isLocked ? 'Complete previous planets first.' : p.description}
+                </div>
+                {!isLocked && (
                   <div className="planet-card-stats">
                     <span className="pstat">⛏ {p.oreMultiplier}× yield</span>
                     {isCurrent && <span className="pstat">📊 {Math.round(damage * 100)}% depleted</span>}
+                    {isNext && !currentExhausted && (
+                      <span className="pstat" style={{ color: '#f5a623' }}>⚠ Exhaust {currentPlanetCfg.name} first</span>
+                    )}
                   </div>
                 )}
               </div>
-              {canAdvance && (
+              {isNext && currentExhausted && (
                 <button className="buy-btn planet-advance-btn" onClick={onNext}>
                   Travel →
                 </button>

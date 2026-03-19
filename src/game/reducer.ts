@@ -85,14 +85,16 @@ export function reducer(state: GameState, action: Action): GameState {
     }
 
     case 'BUY_UPGRADE': {
+      const { researchDiscount } = computeStats(state);
       const upg = UPGRADES.find(u => u.id === action.id);
       if (!upg) return state;
       if (state.upgrades.includes(action.id)) return state;
       if (!isUnlocked(upg, state.upgrades)) return state;
-      if (!canAfford(upg, state)) return state;
+      if (!canAfford(upg, state, researchDiscount)) return state;
+      const discountedRp = Math.ceil(upg.rpCost * (1 - researchDiscount));
       return {
         ...state,
-        rp:       state.rp      - upg.rpCost,
+        rp:       state.rp      - discountedRp,
         credits:  state.credits - (upg.creditCost ?? 0),
         upgrades: [...state.upgrades, action.id],
         notification: `Researched: ${upg.name}`,

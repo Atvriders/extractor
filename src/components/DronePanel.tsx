@@ -6,60 +6,59 @@ interface Props {
   onBuy: (drone: DroneType) => void;
 }
 
-interface DroneDef {
-  id: DroneType;
-  name: string;
-  icon: string;
-  desc: string;
-  statDesc: (fabDiscount: number) => string;
-}
-
-const DRONES: DroneDef[] = [
-  {
-    id: 'miner',
-    name: 'Miner Drone',
-    icon: '🤖',
-    desc: 'Automatically extracts ore from the planet surface.',
-    statDesc: () => '+0.5 ore/sec',
-  },
-  {
-    id: 'researcher',
-    name: 'Researcher Drone',
-    icon: '🧬',
-    desc: 'Analyses extracted material to generate research points.',
-    statDesc: () => '+0.1 RP/sec',
-  },
-  {
-    id: 'trader',
-    name: 'Trader Drone',
-    icon: '📦',
-    desc: 'Trades resources on the galactic market for credits.',
-    statDesc: () => '+1.0 credits/sec',
-  },
-  {
-    id: 'fabricator',
-    name: 'Fabricator Drone',
-    icon: '⚙️',
-    desc: 'Optimises production lines, reducing all drone costs.',
-    statDesc: (fab) => `-${(fab * 100).toFixed(0)}% drone costs`,
-  },
-];
-
 function fmt(n: number): string {
   if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
   if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
   return n.toString();
 }
 
+function pct(n: number, decimals = 0) {
+  return (n * 100).toFixed(decimals) + '%';
+}
+
 export default function DronePanel({ state, onBuy }: Props) {
-  const { fabDiscount } = computeStats(state);
+  const stats = computeStats(state);
+  const { fabDiscount, researchDiscount, minerClickBonus } = stats;
+  const d = state.drones;
+
+  const minerClickPct   = pct(minerClickBonus - 1);
+  const resDiscountPct  = pct(researchDiscount);
+  const traderRp        = (d.trader * 0.02).toFixed(2);
+  const fabOrePct       = pct(Math.min(d.fabricator * 0.008, 0.15));
+
+  const DRONES: Array<{
+    id: DroneType; name: string; icon: string; desc: string; stat: string;
+  }> = [
+    {
+      id: 'miner', name: 'Miner Drone', icon: '🤖',
+      desc: 'Automatically extracts ore. Swarms improve click efficiency.',
+      stat: `+0.5 ore/sec · +${minerClickPct} ore/click`,
+    },
+    {
+      id: 'researcher', name: 'Researcher Drone', icon: '🧬',
+      desc: 'Generates research points and reduces upgrade costs.',
+      stat: `+0.1 RP/sec · −${resDiscountPct} research costs`,
+    },
+    {
+      id: 'trader', name: 'Trader Drone', icon: '📦',
+      desc: 'Earns credits and sends back trade intelligence as RP.',
+      stat: d.trader > 0
+        ? `+1.0 cr/sec · +${traderRp} RP/sec`
+        : '+1.0 cr/sec · +0.02 RP/sec per drone',
+    },
+    {
+      id: 'fabricator', name: 'Fabricator Drone', icon: '⚙️',
+      desc: 'Cuts drone costs and streamlines the extraction pipeline.',
+      stat: `−${pct(fabDiscount)} drone costs · +${fabOrePct} ore/sec`,
+    },
+  ];
 
   return (
     <div className="panel">
       <h2 className="panel-title">Drones</h2>
       <div className="drone-list">
         {DRONES.map(def => {
-          const count = state.drones[def.id] ?? 0;
+          const count = d[def.id] ?? 0;
           const cost  = droneCost(def.id, count, fabDiscount);
           const canBuy =
             Number.isFinite(cost.ore) &&
@@ -73,7 +72,7 @@ export default function DronePanel({ state, onBuy }: Props) {
               <div className="drone-info">
                 <div className="drone-name">{def.name} <span className="drone-count">×{count}</span></div>
                 <div className="drone-desc">{def.desc}</div>
-                <div className="drone-stat">{def.statDesc(fabDiscount)}</div>
+                <div className="drone-stat">{def.stat}</div>
               </div>
               <div className="drone-buy-col">
                 <button

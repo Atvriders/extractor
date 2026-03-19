@@ -140,6 +140,7 @@ export function isUnlocked(upg: Upgrade, purchased: string[]): boolean {
   return upg.requires.every(r => purchased.includes(r));
 }
 
-export function canAfford(upg: Upgrade, state: GameState): boolean {
-  return state.rp >= upg.rpCost && (state.credits >= (upg.creditCost ?? 0));
+export function canAfford(upg: Upgrade, state: GameState, researchDiscount = 0): boolean {
+  const discountedRp = Math.ceil(upg.rpCost * (1 - researchDiscount));
+  return state.rp >= discountedRp && (upg.creditCost == null || state.credits >= upg.creditCost);
 }
