@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, type CSSProperties, type MouseEvent } from 'react';
 import type { GameState } from '../game/types';
 import { computeStats } from '../game/stats';
 import { getPlanet, calcDamage } from '../game/planets';
@@ -505,7 +505,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
     return () => cancelAnimationFrame(raf);
   }, [state.currentPlanet, damage]);
 
-  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleClick = useCallback((e: MouseEvent<HTMLDivElement>) => {
     onClickPlanet();
     const rect = e.currentTarget.getBoundingClientRect();
     const id   = nextId++;
@@ -528,7 +528,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
         {orbitDots > 0 && (
           <div className="orbit-ring" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
             {Array.from({ length: orbitDots }).map((_, i) => (
-              <div key={i} className="orbit-dot" style={{ '--i': i, '--total': orbitDots } as React.CSSProperties} />
+              <div key={i} className="orbit-dot" style={{ '--i': i, '--total': orbitDots } as CSSProperties} />
             ))}
           </div>
         )}

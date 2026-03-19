@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 
 interface Props { onConfirm: (username: string) => void }
 
@@ -11,7 +11,7 @@ export default function UsernameModal({ onConfirm }: Props) {
 
   const valid = USERNAME_RE.test(value);
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!valid) { setError('2–20 characters: letters, numbers, _ or -'); return; }
     setLoading(true);

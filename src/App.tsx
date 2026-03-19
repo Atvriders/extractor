@@ -8,9 +8,9 @@ import LeaderboardPanel from './components/LeaderboardPanel';
 import UsernameModal    from './components/UsernameModal';
 import { reducer }      from './game/reducer';
 import { loadGame, saveGame, resetGame } from './game/save';
-import { getPlanet, calcDamage, PLANETS } from './game/planets';
+import { getPlanet, PLANETS } from './game/planets';
 import { apiLoad, apiSave } from './api';
-import type { DroneType } from './game/types';
+import type { DroneType, GameState } from './game/types';
 import './App.css';
 
 const USERNAME_KEY = 'extractor_username';
@@ -28,7 +28,7 @@ export default function App() {
     localStorage.setItem(USERNAME_KEY, name);
     const cloud = await apiLoad(name);
     if (cloud) {
-      dispatch({ type: 'LOAD', state: cloud as Parameters<typeof reducer>[0] });
+      dispatch({ type: 'LOAD', state: cloud as unknown as GameState });
     }
     setUsername(name);
     setApiReady(true);
@@ -38,7 +38,7 @@ export default function App() {
   useEffect(() => {
     if (!username) return;
     apiLoad(username).then(cloud => {
-      if (cloud) dispatch({ type: 'LOAD', state: cloud as Parameters<typeof reducer>[0] });
+      if (cloud) dispatch({ type: 'LOAD', state: cloud as unknown as GameState });
       setApiReady(true);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,7 +95,6 @@ export default function App() {
 
   const totalDrones = Object.values(state.drones).reduce((a, b) => a + b, 0);
   const planet      = getPlanet(state.currentPlanet);
-  const _damage     = calcDamage(state.planetOreExtracted, planet);
 
   const nextPlanet = PLANETS[state.currentPlanet + 1];
   const canAdvance = nextPlanet && state.totalOreExtracted >= nextPlanet.unlockTotalOre;
