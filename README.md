@@ -1,23 +1,23 @@
 # Extractor
 
-A browser-based incremental clicker game. Click the planet to extract ore, build drones, and industrialise the galaxy. Watch your fleet of visually distinct drones fly between the planet and your orbiting spaceship in real time, while the planet degrades beneath your operation. Fully mobile-friendly with cloud save and a cross-device leaderboard.
+A browser-based incremental clicker game. Click the planet to extract ore, build drones, deploy space stations, and industrialise the galaxy. Watch your fleet of visually distinct drones fly between the planet and your orbiting spaceship in real time, while the planet degrades beneath your operation. Fully mobile-friendly with cloud save and a cross-device leaderboard.
 
 ![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)
 
 ## Gameplay
 
-Click the planet to earn ore. Spend ore on drones. Drones auto-produce resources every frame. Spend research points on upgrades that compound into massive production multipliers. When a planet is sufficiently exhausted, travel to the next one for higher yields.
+Click the planet to earn ore. Spend ore on drones. Drones auto-produce resources every frame. Build stations to multiply output. Spend research points on upgrades that compound into massive production multipliers. When a planet is sufficiently exhausted, travel to the next one for higher yields.
 
 ### Planets
 
 | Planet | Unlock | Yield | Damage Threshold |
 |---|---|---|---|
 | **Earth** | Start | 1× | 5,000 ore |
-| **Arid** | 3,000 total ore | 2.5× | 30,000 ore |
-| **Frozen** | 25,000 total ore | 7× | 200,000 ore |
-| **Void** | 200,000 total ore | 20× | 2,000,000 ore |
+| **Kaelthar** | 3,000 total ore | 2.5× | 30,000 ore |
+| **Cryovast** | 25,000 total ore | 7× | 200,000 ore |
+| **Nullspire** | 200,000 total ore | 20× | 2,000,000 ore |
 
-Each planet has a unique canvas-rendered surface with animated degradation and a 3D hemisphere shadow overlay. Damage is calculated per-planet and resets on travel. All planets are rendered on a starfield canvas with a twinkling star background.
+Each planet has a unique canvas-rendered 3D surface with animated degradation and a hemisphere shadow overlay. Planet canvas is 420×420 px on desktop. Damage is calculated per-planet and resets on travel. All planets are rendered on a starfield canvas with twinkling stars.
 
 ### Planet Degradation (Earth example)
 
@@ -35,9 +35,9 @@ Each planet has a unique canvas-rendered surface with animated degradation and a
 
 | Resource | Source |
 |---|---|
-| **Ore** | Clicking + Miner drones |
-| **Credits** | Trader drones |
-| **Research Points** | Researcher drones |
+| **Ore** | Clicking + Miner drones + Mining Stations |
+| **Credits** | Trader drones + Market Stations |
+| **Research Points** | Researcher drones + Research Stations |
 
 ### Drones
 
@@ -52,19 +52,51 @@ All drone costs scale ×1.15–1.30 per purchase.
 
 Drones are animated on the canvas — up to 2 of each type fly bezier-curve paths between the planet surface and the player's spaceship simultaneously. Colour brightens on the return trip (loaded). The player's spaceship is visible in the top-right corner with engine exhaust, blinking nav lights, and a docking bay light strip.
 
+### Stations
+
+Stations are permanent orbital installations that amplify production. Built from the **Stations** tab; each costs ore + credits and scales in price with count.
+
+| Station | Bonus per unit | Base Cost |
+|---|---|---|
+| **Mining Station** | +25% ore production | 5,000 ore + 2,000 cr |
+| **Research Station** | +0.5 RP/sec flat | 8,000 ore + 4,000 cr |
+| **Market Station** | +15% credit production | 6,000 ore + 3,000 cr |
+| **Fabricator Station** | +2% drone-cost cap reduction (max +10%) | 12,000 ore + 8,000 cr |
+
+Stations are rendered on the canvas as animated orbital structures at type-specific orbit radii around the planet (Mining closest, Research outermost). Up to 3 of each type are shown, evenly spaced angularly, with faint orbit rings.
+
 ### Research Tree
 
-9 upgrades across a dependency tree:
+17 upgrades across a 5-tier dependency tree:
 
 ```
-Reinforced Drill ──► Deep Seam Scanner ──► Crystal Seam ──► Dark Matter Trace
-Drone Efficiency ──► Research Automation ─────────────────────────────────────┘
-Market Access
-Auto-Extractor
-Overclocked Fabricators
-```
+Tier 1 (no prereqs)
+  Reinforced Drill      — click ore ×2
+  Drone Efficiency      — miner output ×1.5
+  Market Access         — trader output ×1.5
+  Auto-Extractor        — passive +1 ore/sec
+  Overclocked Fabricators — raise fab discount cap 60%→80%
 
-**Dark Matter Trace** (250 RP + 500 cr) doubles all production — the endgame multiplier.
+Tier 2
+  Deep Seam Scanner     — req: Reinforced Drill      — miner ×2 + click ore ×2
+  Research Automation   — req: Drone Efficiency      — researcher ×1.5
+  Arbitrage Algorithm   — req: Market Access         — trader ×1.5 more
+  Nano Assembly         — req: Overclocked Fab       — fab per-unit rate 0.05→0.07
+
+Tier 3
+  Crystal Seam          — req: Deep Seam Scanner     — miner ×2, click ×3
+  Quantum Analysis      — req: Research Automation   — researcher ×1.5 RP
+  Void Contracts        — req: Arbitrage Algorithm   — all credits ×2
+  Neural Convergence    — req: Quantum Analysis      — fab cap 80%→90%
+
+Tier 4
+  Dark Matter Trace     — req: Crystal Seam + Research Automation — all prod ×2
+  Seismic Tap           — req: Crystal Seam          — click ore ×2
+  Planetary Core Drill  — req: Seismic Tap            — miners ×2
+
+Tier 5
+  Dark Synthesis        — req: Dark Matter Trace + Nano Assembly — all prod ×3
+```
 
 ## Cloud Save & Leaderboard
 
