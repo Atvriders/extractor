@@ -966,6 +966,91 @@ function drawFabricatorShape(ctx: CanvasRenderingContext2D, returning: boolean, 
   ctx.fillStyle = `rgba(180,255,240,${eyePulse})`; ctx.fill();
 }
 
+// ── Transport shuttle (station ↔ ship) ─────────────────────────────────────
+const TRANSPORT_SPEEDS       = { mining: 0.00025, research: 0.0002, market: 0.00022, fabricator: 0.00028 };
+const TRANSPORT_PHASE_OFFSETS = { mining: 0, research: 0.25, market: 0.5, fabricator: 0.75 };
+
+function drawTransportDrone(
+  ctx: CanvasRenderingContext2D,
+  ax: number, ay: number,   // station position
+  bx: number, by: number,   // ship position
+  phase: number, t: number, seed: number,
+) {
+  // A→B phase 0–0.5, B→A phase 0.5–1
+  const HALF = 0.5;
+  const going = phase < HALF;
+  const p  = easeInOut(going ? phase / HALF : (phase - HALF) / HALF);
+  const p2 = easeInOut(Math.min(1, (going ? phase / HALF : (phase - HALF) / HALF) + 0.01));
+  const [x0, y0, x1, y1] = going ? [ax, ay, bx, by] : [bx, by, ax, ay];
+
+  // Midpoint control point — arc slightly perpendicular
+  const mx = (x0 + x1) * 0.5, my = (y0 + y1) * 0.5;
+  const dx = x1 - x0, dy = y1 - y0;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const cx = mx - (dy / len) * 28, cy = my + (dx / len) * 28;
+
+  const pos  = quadBez(p,  x0, y0, cx, cy, x1, y1);
+  const next = quadBez(p2, x0, y0, cx, cy, x1, y1);
+  const angle = Math.atan2(next.y - pos.y, next.x - pos.x);
+
+  ctx.save();
+  ctx.translate(pos.x, pos.y);
+  ctx.rotate(angle);
+
+  // Engine glow
+  const ep = 0.55 + Math.sin(t * 0.015 + seed) * 0.3;
+  const gl = ctx.createRadialGradient(-5, 0, 0, -5, 0, 9);
+  gl.addColorStop(0, `rgba(0,220,255,${ep * 0.9})`);
+  gl.addColorStop(1, 'transparent');
+  ctx.fillStyle = gl; ctx.fillRect(-14, -9, 18, 18);
+
+  // Wings
+  ctx.beginPath();
+  ctx.moveTo(-2, -3); ctx.lineTo(1, -6); ctx.lineTo(3, -3);
+  ctx.moveTo(-2,  3); ctx.lineTo(1,  6); ctx.lineTo(3,  3);
+  ctx.fillStyle = going ? 'hsl(195,70%,44%)' : 'hsl(195,90%,64%)';
+  ctx.fill();
+
+  // Hull body
+  ctx.beginPath();
+  ctx.moveTo( 7,  0);
+  ctx.lineTo( 4, -3);
+  ctx.lineTo(-5, -3);
+  ctx.lineTo(-7, -1.5);
+  ctx.lineTo(-7,  1.5);
+  ctx.lineTo(-5,  3);
+  ctx.lineTo( 4,  3);
+  ctx.closePath();
+  ctx.fillStyle = going ? 'hsl(195,80%,54%)' : 'hsl(195,100%,74%)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(180,240,255,0.8)'; ctx.lineWidth = 0.6; ctx.stroke();
+
+  // Cockpit
+  ctx.beginPath(); ctx.ellipse(4, 0, 2, 1.5, 0, 0, TWO_PI);
+  ctx.fillStyle = 'rgba(200,245,255,0.9)'; ctx.fill();
+
+  // Engine ports
+  for (const ey of [-1.5, 1.5]) {
+    ctx.beginPath(); ctx.arc(-6.5, ey, 1.5, 0, TWO_PI);
+    ctx.fillStyle = `rgba(0,200,255,${ep})`; ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function drawTransports(ctx: CanvasRenderingContext2D, sm: StationCounts, t: number) {
+  const types = ['mining', 'research', 'market', 'fabricator'] as const;
+  for (let i = 0; i < types.length; i++) {
+    const type = types[i];
+    if ((sm[type] ?? 0) === 0) continue;
+    const angle = ST_OFFSETS[type] + t * ST_SPEEDS[type];
+    const stX = CX + Math.cos(angle) * ST_ORBITS[type];
+    const stY = CY + Math.sin(angle) * ST_ORBITS[type];
+    const phase = (t * TRANSPORT_SPEEDS[type] + TRANSPORT_PHASE_OFFSETS[type]) % 1;
+    drawTransportDrone(ctx, stX, stY, SHIP_X, SHIP_Y, phase, t, i * 997);
+  }
+}
+
 // ── Engine glow (shared) ───────────────────────────────────────────────────
 const ENGINE_HUE: Record<DroneKind, number> = { miner: 30, researcher: 270, trader: 45, fabricator: 162 };
 
@@ -1139,6 +1224,7 @@ export default function Planet({ state, onClickPlanet }: Props) {
       drawPlanet(ctx, t, pid, dmg);
       draw3DShadow(ctx);
       drawStations(ctx, stationsRef.current, t);
+      drawTransports(ctx, stationsRef.current, t);
       drawShip(ctx, t);
       for (const d of droneAnims.current) drawDrone(ctx, d, t);
 
