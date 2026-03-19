@@ -85,7 +85,7 @@ const ICE_CRACKS = (() => {
 
 // Void energy cracks
 const VOID_CRACKS = (() => {
-  const rng = seeded(0xv01d9999);
+  const rng = seeded(0x001d9999);
   return Array.from({ length: 10 }, () => ({
     startA: rng() * TWO_PI,
     pts: Array.from({ length: 7 }, () => ({ da: (rng() - 0.5) * 0.7, dr: 0.1 + rng() * 0.3 })),
