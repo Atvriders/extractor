@@ -1,6 +1,6 @@
 services:
   extractor:
-    build: .
+    image: ghcr.io/atvriders/extractor:latest
     ports:
       - "3002:80"
     restart: unless-stopped
