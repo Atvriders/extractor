@@ -49,8 +49,9 @@ export function reducer(state: GameState, action: Action): GameState {
     case 'BUY_DRONE': {
       const { fabDiscount } = computeStats(state);
       const drone = action.drone as DroneType;
-      const cost  = droneCost(drone, state.drones[drone], fabDiscount);
-      if (state.ore < cost.ore || state.credits < cost.credits || state.rp < cost.rp) return state;
+      const count = state.drones[drone] ?? 0;
+      const cost  = droneCost(drone, count, fabDiscount);
+      if (!Number.isFinite(cost.ore) || state.ore < cost.ore || state.credits < cost.credits || state.rp < cost.rp) return state;
       return {
         ...state,
         ore:     state.ore     - cost.ore,

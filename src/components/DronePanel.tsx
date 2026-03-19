@@ -59,9 +59,10 @@ export default function DronePanel({ state, onBuy }: Props) {
       <h2 className="panel-title">Drones</h2>
       <div className="drone-list">
         {DRONES.map(def => {
-          const count = state.drones[def.id];
+          const count = state.drones[def.id] ?? 0;
           const cost  = droneCost(def.id, count, fabDiscount);
           const canBuy =
+            Number.isFinite(cost.ore) &&
             state.ore     >= cost.ore &&
             state.credits >= cost.credits &&
             state.rp      >= cost.rp;
@@ -83,7 +84,7 @@ export default function DronePanel({ state, onBuy }: Props) {
                   Buy
                 </button>
                 <div className="cost-list">
-                  {cost.ore     > 0 && <span className="cost-item ore">{fmt(cost.ore)} ore</span>}
+                  <span className="cost-item ore">{fmt(cost.ore)} ore</span>
                   {cost.credits > 0 && <span className="cost-item cred">{fmt(cost.credits)} cr</span>}
                   {cost.rp      > 0 && <span className="cost-item rp">{fmt(cost.rp)} RP</span>}
                 </div>
